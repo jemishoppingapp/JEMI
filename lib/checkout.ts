@@ -27,6 +27,7 @@
  *    even if the order has already been paid (no-op in that case).
  */
 import { and, eq, lt, sql, inArray } from 'drizzle-orm';
+import { uuidArray } from '@/lib/sql-array';
 import { dbPool } from '@/db/pool';
 import { schema } from '@/db';
 import { ApiServerError } from '@/lib/api';
@@ -114,7 +115,7 @@ export async function createPendingOrder(
       sql`SELECT id, name, slug, description, price, original_price,
                  images, category, in_stock, stock_quantity, seller, is_active
           FROM products
-          WHERE id = ANY(${productIds}::uuid[])
+          WHERE id = ANY(${uuidArray(productIds)})
             AND is_active = true
           FOR UPDATE`
     );

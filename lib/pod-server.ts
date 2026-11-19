@@ -11,6 +11,7 @@
  * collected; the ledger just tracks what JEMI owes each seller.
  */
 import { sql } from 'drizzle-orm';
+import { uuidArray } from '@/lib/sql-array';
 import { db, schema } from '@/db';
 import { dbPool } from '@/db/pool';
 
@@ -57,7 +58,7 @@ export async function markPodCollectedAndDelivered(
       const prodRows = await tx.execute(sql`
         SELECT id, seller_id, margin_percent
         FROM products
-        WHERE id = ANY(${Array.from(productIds)}::uuid[])
+        WHERE id = ANY(${uuidArray(productIds)})
       `);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const prodMap = new Map((prodRows.rows as any[]).map((p) => [p.id, p]));
