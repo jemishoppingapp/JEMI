@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
@@ -18,6 +19,10 @@ import type { ProductCardData } from '@/components/product/ProductCard';
 // Cached at Vercel's edge, rebuilt at most once a minute (and right away
 // when a product is saved; see revalidateProductPages()).
 export const revalidate = 60;
+
+// The one official address of the homepage (relative to metadataBase in
+// app/layout.tsx), so www/non-www and ?utm=... copies count as one page.
+export const metadata: Metadata = { alternates: { canonical: '/' } };
 
 async function getFeaturedProducts(): Promise<ProductCardData[]> {
   try {

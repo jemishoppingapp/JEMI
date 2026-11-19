@@ -2,7 +2,7 @@
  *  Convention: https://llmstxt.org — served at /llms.txt */
 export const dynamic = 'force-static';
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://jemi.com.ng';
+import { SITE_URL } from '@/lib/site';
 
 export async function GET() {
   const body = `# JEMI

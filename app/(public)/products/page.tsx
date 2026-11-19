@@ -26,14 +26,22 @@ export async function generateMetadata({
   const sp = await searchParams;
   const q = sp.q?.trim();
   const category = sp.category;
+  // Canonical keeps only what changes the CONTENT (category, page), not
+  // the sort order, so sorted copies don't compete with the real page.
+  const page = Math.max(1, parseInt(sp.page ?? '1', 10) || 1);
+  const canonicalParams = new URLSearchParams();
+  if (category && category !== 'all') canonicalParams.set('category', category);
+  if (page > 1) canonicalParams.set('page', String(page));
+  const qs = canonicalParams.toString();
+  const canonical = '/products' + (qs ? `?${qs}` : '');
   if (q) {
     return { title: `Search: ${q}`, description: `Search results for "${q}".`, robots: { index: false } };
   }
   if (category && category !== 'all') {
     const niceName = category.charAt(0).toUpperCase() + category.slice(1);
-    return { title: `${niceName}`, description: `Shop ${niceName} on JEMI.` };
+    return { title: `${niceName}`, description: `Shop ${niceName} on JEMI.`, alternates: { canonical } };
   }
-  return { title: 'Shop', description: 'Browse all products on JEMI.' };
+  return { title: 'Shop', description: 'Browse all products on JEMI.', alternates: { canonical } };
 }
 
 async function fetchProducts(args: {

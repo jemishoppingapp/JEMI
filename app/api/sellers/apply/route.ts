@@ -10,6 +10,7 @@ import { ok, fail, failValidation, withErrorHandling } from '@/lib/api';
 import { notifyOps } from '@/lib/notify';
 import { nigerianPhoneSchema } from '@/lib/validators';
 import { issueAndSendOtp } from '@/lib/verification';
+import { SITE_URL } from '@/lib/site';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -115,7 +116,7 @@ export async function POST(req: Request) {
       try {
         await notifyOps({
           subject: 'New seller application: ' + parsed.businessName,
-          text: 'NEW SELLER APPLICATION\nBusiness: ' + parsed.businessName + '\nOwner: ' + parsed.fullName + '\nPhone: ' + parsed.phone + '\nEmail: ' + parsed.email + '\nReview: ' + (process.env.NEXT_PUBLIC_SITE_URL || 'https://jemi.com.ng') + '/admin/sellers',
+          text: 'NEW SELLER APPLICATION\nBusiness: ' + parsed.businessName + '\nOwner: ' + parsed.fullName + '\nPhone: ' + parsed.phone + '\nEmail: ' + parsed.email + '\nReview: ' + SITE_URL + '/admin/sellers',
         });
       } catch (e) { console.error('[notify]', e); }
 

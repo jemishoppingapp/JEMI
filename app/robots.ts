@@ -1,8 +1,7 @@
 import type { MetadataRoute } from 'next';
+import { SITE_URL } from '@/lib/site';
 
-const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL ||
-  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
+
 
 export default function robots(): MetadataRoute.Robots {
   return {
@@ -20,10 +19,14 @@ export default function robots(): MetadataRoute.Robots {
           '/profile',
           '/profile/',
           '/offline',
+          '/seller$',   // seller dashboard (not /sellers/... or /become-a-seller)
+          '/seller/',
+          '/sellers/pending',
+          '/verify-email',
         ],
       },
     ],
     sitemap: `${SITE_URL}/sitemap.xml`,
-    host: SITE_URL,
+    host: SITE_URL.replace(/^https?:\/\//, ''),
   };
 }

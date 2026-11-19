@@ -8,9 +8,7 @@ import { ok, fail, failValidation, withErrorHandling, ApiServerError } from '@/l
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL ||
-  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
+import { SITE_URL } from '@/lib/site';
 
 const itemSchema = z.object({
   productId: z.string().uuid('Invalid product reference.'),

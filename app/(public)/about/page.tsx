@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { Container } from '@/components/Container';
 
-export const metadata: Metadata = { title: 'About' };
+export const metadata: Metadata = { title: 'About', alternates: { canonical: '/about' } };
 
 export default function AboutPage() {
   return (

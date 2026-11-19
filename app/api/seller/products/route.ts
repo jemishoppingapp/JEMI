@@ -6,6 +6,7 @@ import { productImageUrlSchema } from '@/lib/image-url';
 import { ok, fail, failValidation, withErrorHandling } from '@/lib/api';
 import { revalidateProductPages } from '@/lib/revalidate';
 import { notifyOps } from '@/lib/notify';
+import { SITE_URL } from '@/lib/site';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -90,7 +91,7 @@ export async function POST(req: Request) {
     try {
       await notifyOps({
         subject: 'New product: ' + parsed.name + ' (' + seller.businessName + ')',
-        text: 'NEW PRODUCT LISTED\n' + parsed.name + ' - NGN ' + new Intl.NumberFormat('en-NG').format(parsed.price) + '\nSeller: ' + seller.businessName + '\n' + (process.env.NEXT_PUBLIC_SITE_URL || 'https://jemi.com.ng') + '/products/' + created[0].slug,
+        text: 'NEW PRODUCT LISTED\n' + parsed.name + ' - NGN ' + new Intl.NumberFormat('en-NG').format(parsed.price) + '\nSeller: ' + seller.businessName + '\n' + SITE_URL + '/products/' + created[0].slug,
       });
     } catch (e) { console.error('[notify]', e); }
 

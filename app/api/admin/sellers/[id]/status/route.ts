@@ -4,6 +4,7 @@ import { dbPool } from '@/db/pool';
 import { requireAdmin } from '@/lib/session';
 import { ok, fail, failValidation, withErrorHandling } from '@/lib/api';
 import { sendEmail, sellerApprovedHtml } from '@/lib/email';
+import { SITE_URL } from '@/lib/site';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -129,7 +130,7 @@ export async function POST(
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const w = who.rows[0] as any;
           if (w?.email) {
-            const dash = (process.env.NEXT_PUBLIC_SITE_URL || 'https://jemi.com.ng') + '/seller';
+            const dash = SITE_URL + '/seller';
             await sendEmail({
               to: w.email,
               subject: `${w.business_name} is approved on JEMI`,

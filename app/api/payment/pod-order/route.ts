@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { sql } from 'drizzle-orm';
 import { dbPool } from '@/db/pool';
+import { SITE_URL } from '@/lib/site';
 import { revalidateProductPages } from '@/lib/revalidate';
 import { requireAuth } from '@/lib/session';
 import { createPendingOrder } from '@/lib/checkout';
@@ -113,7 +114,7 @@ export async function POST(req: Request) {
 
     // Email the buyer their confirmation. Never breaks the checkout.
     try {
-      const siteUrl2 = process.env.NEXT_PUBLIC_SITE_URL || 'https://jemi.com.ng';
+      const siteUrl2 = SITE_URL;
       const gate2 = parsed.deliveryZone === 'lasu-iba-gate' ? 'LASU Iba Gate' : 'Iyana Iba Gate';
       const naira2 = new Intl.NumberFormat('en-NG').format(result.total);
       await sendEmail({
@@ -129,7 +130,7 @@ export async function POST(req: Request) {
     try {
       const alertTo = process.env.ORDER_ALERT_EMAIL || process.env.SEED_ADMIN_EMAIL;
       if (alertTo) {
-        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://jemi.com.ng';
+        const siteUrl = SITE_URL;
         const gate = parsed.deliveryZone === 'lasu-iba-gate' ? 'LASU Iba Gate' : 'Iyana Iba Gate';
         const naira = new Intl.NumberFormat('en-NG').format(result.total);
         await sendEmail({
@@ -153,7 +154,7 @@ export async function POST(req: Request) {
     try {
       const tgGate = parsed.deliveryZone === 'lasu-iba-gate' ? 'LASU Iba Gate' : 'Iyana Iba Gate';
       const tgNaira = new Intl.NumberFormat('en-NG').format(result.total);
-      await sendTelegram('NEW ORDER ' + result.orderNumber + '\nCollect NGN ' + tgNaira + ' at ' + tgGate + '\nBuyer: ' + user.name + ' ' + (user.phone || '') + '\n' + (process.env.NEXT_PUBLIC_SITE_URL || 'https://jemi.com.ng') + '/admin/orders/' + result.orderNumber);
+      await sendTelegram('NEW ORDER ' + result.orderNumber + '\nCollect NGN ' + tgNaira + ' at ' + tgGate + '\nBuyer: ' + user.name + ' ' + (user.phone || '') + '\n' + SITE_URL + '/admin/orders/' + result.orderNumber);
     } catch (e) { console.error('[notify]', e); }
 
     return ok({

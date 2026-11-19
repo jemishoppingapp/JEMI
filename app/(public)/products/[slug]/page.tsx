@@ -10,6 +10,7 @@ import { ProductDetailActions } from '@/components/product/ProductDetailActions'
 import { db, schema } from '@/db';
 import { formatCurrency } from '@/lib/utils';
 import { getPaymentMode } from '@/lib/payment-mode';
+import { SITE_URL } from '@/lib/site';
 
 // Cached at Vercel's edge, rebuilt at most once a minute (and right away
 // when the product is saved; see revalidateProductPages()). Stock and
@@ -22,9 +23,7 @@ export async function generateStaticParams() {
   return [];
 }
 
-const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL ||
-  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
+
 
 // cache(): generateMetadata and the page both need the product; this
 // makes it one database query per view instead of two.
@@ -54,6 +53,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   return {
     title: doc.name,
     description: doc.description?.slice(0, 160) ?? `${doc.name} on JEMI.`,
+    alternates: { canonical: `/products/${doc.slug}` },
     openGraph: {
       title: doc.name,
       description: doc.description?.slice(0, 160),

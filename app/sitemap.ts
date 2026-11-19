@@ -1,10 +1,9 @@
 import type { MetadataRoute } from 'next';
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@/db';
+import { SITE_URL } from '@/lib/site';
 
-const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL ||
-  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
+
 
 const STATIC_ROUTES: MetadataRoute.Sitemap = [
   { url: SITE_URL, changeFrequency: 'daily', priority: 1 },
@@ -13,7 +12,16 @@ const STATIC_ROUTES: MetadataRoute.Sitemap = [
   { url: `${SITE_URL}/products?category=electronics`, changeFrequency: 'daily', priority: 0.7 },
   { url: `${SITE_URL}/products?category=food`, changeFrequency: 'daily', priority: 0.7 },
   { url: `${SITE_URL}/products?category=accessories`, changeFrequency: 'daily', priority: 0.7 },
+  { url: `${SITE_URL}/become-a-seller`, changeFrequency: 'monthly', priority: 0.5 },
+  { url: `${SITE_URL}/about`, changeFrequency: 'monthly', priority: 0.4 },
+  { url: `${SITE_URL}/contact`, changeFrequency: 'monthly', priority: 0.4 },
+  { url: `${SITE_URL}/terms`, changeFrequency: 'yearly', priority: 0.2 },
+  { url: `${SITE_URL}/privacy`, changeFrequency: 'yearly', priority: 0.2 },
 ];
+
+// Re-read products at most once an hour (it used to hit the DB on every
+// crawler request).
+export const revalidate = 3600;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   try {

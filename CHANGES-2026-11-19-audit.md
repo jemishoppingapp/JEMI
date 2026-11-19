@@ -43,3 +43,10 @@ A read-through of every page, API route, component and helper, looking for bugs,
 - **The repo is public on GitHub.** No secrets are in it, but anyone can read the code. Make it private (Settings → Danger Zone) unless you mean it to be open.
 
 Checks run: `tsc --noEmit` is clean and `next build` with lint passes with no warnings. A local run confirmed the homepage cache HIT (`s-maxage=60`), `/api/auth/me`, cart validation, the contact details and the password toggle. A cart logic test passed, and phone-size screenshots in dark mode look right.
+
+## Round 3: SEO basics (same day)
+- **One site address** (`SITE_URL` in `lib/site.ts`). It was copied into 10 files, and production could fall back to the `*.vercel.app` address in the sitemap, robots.txt and links. Production now defaults to `https://www.jemi.com.ng` (`NEXT_PUBLIC_SITE_URL` still overrides it).
+- **Canonical URLs** on the home, shop (category and page kept, sort dropped), product, about, contact, terms, privacy and become-a-seller pages.
+- **Sitemap:** added become-a-seller, about, contact, terms and privacy. It's cached for 1 hour instead of querying the database on every crawler hit.
+- **robots.txt:** now also keeps the seller dashboard, seller-pending and verify-email pages out of search.
+- **Optional `GOOGLE_SITE_VERIFICATION` env var** for Search Console's HTML-tag method. The DNS method needs no code.

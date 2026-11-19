@@ -6,6 +6,7 @@ import { Container } from '@/components/Container';
 export const metadata: Metadata = {
   title: 'Sell on JEMI',
   description: 'Sell your products to LASU students. Set up your store in minutes, get paid weekly via Paystack.',
+  alternates: { canonical: '/become-a-seller' },
 };
 
 const STEPS = [
