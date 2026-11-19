@@ -6,8 +6,10 @@ import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { apiFetch, ApiError } from '@/lib/api-client';
+import { safeRedirectPath } from '@/lib/utils';
 
 interface LoginResp {
   user: { id: string; email: string; name: string; role: string; profile_completed: boolean };
@@ -39,8 +41,8 @@ export function LoginForm({ fromPath }: { fromPath?: string }) {
         next = '/admin';
       } else if (data.user.role === 'seller') {
         next = '/seller';
-      } else if (fromPath && fromPath.startsWith('/')) {
-        next = fromPath;
+      } else if (fromPath && safeRedirectPath(fromPath, '') !== '') {
+        next = safeRedirectPath(fromPath);
       } else if (!data.user.profile_completed) {
         next = '/profile/complete';
       } else {
@@ -83,7 +85,7 @@ export function LoginForm({ fromPath }: { fromPath?: string }) {
             <Label htmlFor="password" className="text-fg-1">Password</Label>
             <Link href="/forgot-password" className="text-xs text-primary hover:text-primary-hover">Forgot?</Link>
           </div>
-          <Input id="password" type="password" autoComplete="current-password"
+          <PasswordInput id="password" autoComplete="current-password"
             value={password} onChange={(e) => setPassword(e.target.value)} required
             className="mt-1.5" placeholder="••••••••" />
           {fieldError?.field === 'password' && (

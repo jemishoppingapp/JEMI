@@ -69,7 +69,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ or
           </span>
         </div>
         <p className="text-sm text-fg-2">
-          Placed {new Date(order.createdAt).toLocaleString('en-NG', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' })}
+          Placed {new Date(order.createdAt).toLocaleString('en-NG', { timeZone: 'Africa/Lagos', day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' })}
         </p>
       </div>
 
@@ -189,7 +189,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ or
                   <p className="text-sm font-medium text-fg capitalize">{entry.status.replace(/_/g, ' ')}</p>
                   {entry.note && <p className="text-xs text-fg-2 mt-0.5">{entry.note}</p>}
                   <p className="text-[11px] text-fg-3 mt-1">
-                    {new Date(entry.timestamp).toLocaleString('en-NG', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}
+                    {new Date(entry.timestamp).toLocaleString('en-NG', { timeZone: 'Africa/Lagos', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}
                   </p>
                 </div>
               </li>

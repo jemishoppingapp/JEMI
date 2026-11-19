@@ -85,9 +85,9 @@ export function BrandedFallback({ variant, title, message, reset }: Props) {
             </div>
           )}
           {variant === '404' && (
-            <div className="h-12 w-12 rounded-full bg-gray-100 flex items-center justify-center">
+            <div className="h-12 w-12 rounded-full bg-surface-2 flex items-center justify-center">
               <svg
-                className="h-6 w-6 text-gray-600"
+                className="h-6 w-6 text-fg-2"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -117,7 +117,7 @@ export function BrandedFallback({ variant, title, message, reset }: Props) {
         <h1 className="text-xl font-semibold text-fg mb-2">
           {finalTitle}
         </h1>
-        <p className="text-sm text-gray-600 mb-6 max-w-sm mx-auto">
+        <p className="text-sm text-fg-2 mb-6 max-w-sm mx-auto">
           {finalMessage}
         </p>
 
@@ -134,7 +134,7 @@ export function BrandedFallback({ variant, title, message, reset }: Props) {
           )}
           <Link
             href="/"
-            className="tap inline-flex items-center px-4 py-2 rounded-md border border-border text-sm font-medium text-gray-700 hover:bg-surface-muted transition-colors"
+            className="tap inline-flex items-center px-4 py-2 rounded-md border border-border text-sm font-medium text-fg-1 hover:bg-surface-muted transition-colors"
           >
             Go home
           </Link>

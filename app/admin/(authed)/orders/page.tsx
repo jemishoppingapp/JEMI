@@ -180,7 +180,7 @@ export default async function AdminOrdersPage({
                       </p>
                       <p className="text-xs text-fg-2">
                         {itemCount} item{itemCount === 1 ? '' : 's'} · {formatCurrency(Number(order.total))} ·{' '}
-                        {new Date(order.createdAt).toLocaleString('en-NG', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}
+                        {new Date(order.createdAt).toLocaleString('en-NG', { timeZone: 'Africa/Lagos', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}
                       </p>
                     </div>
                     <ChevronRight className="h-4 w-4 text-fg-3 shrink-0" />

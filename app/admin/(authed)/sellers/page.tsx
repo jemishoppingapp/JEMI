@@ -190,7 +190,7 @@ export default async function AdminSellersPage({
                         <span className="text-fg-3">{seller.userEmail}</span>
                       </p>
                       <p className="text-[11px] text-fg-3 mt-1">
-                        Applied {new Date(seller.appliedAt).toLocaleString('en-NG', {
+                        Applied {new Date(seller.appliedAt).toLocaleString('en-NG', { timeZone: 'Africa/Lagos',
                           day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit',
                         })}
                       </p>

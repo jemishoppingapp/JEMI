@@ -7,11 +7,13 @@ import { Button } from '@/components/ui/button';
 import { CartLineItem } from '@/components/cart/CartLineItem';
 import { useCartStore } from '@/store/cart';
 import { formatCurrency } from '@/lib/utils';
+import { DELIVERY_FEE, type PaymentMode } from '@/lib/shop-config';
+import { useCartSync } from '@/hooks/use-cart-sync';
 
-const DELIVERY_FEE = 500;
-
-export function CartPageContent() {
+export function CartPageContent({ paymentMode }: { paymentMode: PaymentMode }) {
   const items = useCartStore((s) => s.items);
+  useCartSync(); // refresh prices / stock from the server
+  const units = items.reduce((sum, i) => sum + i.quantity, 0);
   const subtotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
   const total = subtotal + (items.length > 0 ? DELIVERY_FEE : 0);
 
@@ -33,7 +35,7 @@ export function CartPageContent() {
       <div className="mb-8">
         <p className="text-[11px] uppercase tracking-[0.2em] text-primary font-medium mb-3">Cart</p>
         <h1 className="font-display text-3xl sm:text-4xl font-semibold text-fg leading-tight">
-          {items.length} item{items.length === 1 ? '' : 's'}
+          {units} item{units === 1 ? '' : 's'}
         </h1>
       </div>
 
@@ -63,7 +65,11 @@ export function CartPageContent() {
           <Button asChild variant="default" size="tap" className="w-full">
             <Link href="/checkout">Proceed to checkout<ArrowRight className="h-4 w-4" /></Link>
           </Button>
-          <p className="text-[11px] text-fg-3 mt-3 text-center">Secure payment via Paystack. Pickup on LASU campus.</p>
+          <p className="text-[11px] text-fg-3 mt-3 text-center">
+            {paymentMode === 'pod'
+              ? 'No payment now. Pay at the gate when you collect on LASU campus.'
+              : 'Secure payment via Paystack. Pickup on LASU campus.'}
+          </p>
         </aside>
       </div>
     </Container>

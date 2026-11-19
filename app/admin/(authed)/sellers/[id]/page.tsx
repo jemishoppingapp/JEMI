@@ -81,14 +81,14 @@ export default async function AdminSellerDetailPage({
         </div>
         <p className="text-sm text-fg-2">
           Applied{' '}
-          {new Date(seller.appliedAt).toLocaleString('en-NG', {
+          {new Date(seller.appliedAt).toLocaleString('en-NG', { timeZone: 'Africa/Lagos',
             day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit',
           })}
         </p>
         {seller.approvedAt && (
           <p className="text-xs text-fg-3 mt-1">
             Approved{' '}
-            {new Date(seller.approvedAt).toLocaleString('en-NG', {
+            {new Date(seller.approvedAt).toLocaleString('en-NG', { timeZone: 'Africa/Lagos',
               day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit',
             })}
           </p>

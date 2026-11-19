@@ -115,7 +115,7 @@ export default async function SellerOrderDetailPage({
           </div>
           <p className="text-sm text-fg-2">
             Placed{' '}
-            {new Date(order.createdAt).toLocaleString('en-NG', {
+            {new Date(order.createdAt).toLocaleString('en-NG', { timeZone: 'Africa/Lagos',
               day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit',
             })}
           </p>

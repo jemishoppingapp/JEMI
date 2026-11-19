@@ -27,7 +27,7 @@ export default async function VerifyPage({
         <h1 className="text-xl font-semibold text-fg mb-2">
           No payment to verify
         </h1>
-        <p className="text-sm text-gray-500 mb-6">
+        <p className="text-sm text-fg-2 mb-6">
           We didn't find a payment reference to confirm.
         </p>
         <Button asChild variant="default" size="tap">
@@ -50,7 +50,7 @@ function VerifyLoading() {
   return (
     <div className="text-center py-12">
       <Loader2 className="h-8 w-8 text-primary animate-spin mx-auto mb-4" />
-      <p className="text-sm text-gray-600">Confirming your payment…</p>
+      <p className="text-sm text-fg-2">Confirming your payment…</p>
     </div>
   );
 }

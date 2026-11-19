@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import type { Metadata } from 'next';
@@ -8,14 +9,26 @@ import { ProductImageGallery } from '@/components/product/ProductImageGallery';
 import { ProductDetailActions } from '@/components/product/ProductDetailActions';
 import { db, schema } from '@/db';
 import { formatCurrency } from '@/lib/utils';
+import { getPaymentMode } from '@/lib/payment-mode';
 
-export const dynamic = 'force-dynamic';
+// Cached at Vercel's edge, rebuilt at most once a minute (and right away
+// when the product is saved; see revalidateProductPages()). Stock and
+// price are re-checked at checkout, so a minute of staleness is safe.
+export const revalidate = 60;
+
+// No pages are built ahead of time; each product page is built on its
+// first visit and then served from the cache (on-demand ISR).
+export async function generateStaticParams() {
+  return [];
+}
 
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL ||
   (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
 
-async function fetchProduct(slug: string) {
+// cache(): generateMetadata and the page both need the product; this
+// makes it one database query per view instead of two.
+const fetchProduct = cache(async function fetchProduct(slug: string) {
   try {
     const rows = await db()
       .select()
@@ -24,11 +37,14 @@ async function fetchProduct(slug: string) {
       .limit(1);
     return rows[0] ?? null;
   } catch (err) {
+    // A database error is NOT "product not found": rethrow so the cached
+    // copy keeps being served (and the error page shows if there is none)
+    // instead of caching a 404 for a real product.
     // eslint-disable-next-line no-console
     console.error('[product detail]', err);
-    return null;
+    throw err;
   }
-}
+});
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
@@ -151,7 +167,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
           </div>
 
           {product.description && (
-            <p className="text-sm text-fg-1 mb-6 leading-relaxed">{product.description}</p>
+            <p className="text-sm text-fg-1 mb-6 leading-relaxed whitespace-pre-line">{product.description}</p>
           )}
 
           {product.features.length > 0 && (
@@ -190,7 +206,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
               <Check className="h-4 w-4 text-primary shrink-0 mt-0.5" aria-hidden />
               <div>
                 <p className="font-medium text-fg mb-0.5">Pickup code</p>
-                <p>Shown after payment</p>
+                <p>{getPaymentMode() === 'pod' ? 'Shown as soon as you order' : 'Shown after payment'}</p>
               </div>
             </div>
           </div>

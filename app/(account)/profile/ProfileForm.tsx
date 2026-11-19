@@ -9,6 +9,7 @@ import {
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { apiFetch, ApiError } from '@/lib/api-client';
 import type { CurrentUser } from '@/lib/session';
@@ -151,7 +152,7 @@ export function ProfileForm({ user }: { user: CurrentUser }) {
         <div className="px-5 pb-5 pt-3 space-y-4">
           <div>
             <Label htmlFor="currentPassword" className="text-[11px] uppercase tracking-[0.15em] text-fg-3">Current password</Label>
-            <Input id="currentPassword" type="password" autoComplete="current-password"
+            <PasswordInput id="currentPassword" autoComplete="current-password"
               value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} className="mt-1 bg-surface" />
             {passwordFieldError?.field === 'current_password' && (
               <p className="text-xs text-danger mt-1">{passwordFieldError.message}</p>
@@ -159,7 +160,7 @@ export function ProfileForm({ user }: { user: CurrentUser }) {
           </div>
           <div>
             <Label htmlFor="newPassword" className="text-[11px] uppercase tracking-[0.15em] text-fg-3">New password</Label>
-            <Input id="newPassword" type="password" autoComplete="new-password"
+            <PasswordInput id="newPassword" autoComplete="new-password"
               value={newPassword} onChange={(e) => setNewPassword(e.target.value)} minLength={8} className="mt-1 bg-surface" />
             {passwordFieldError?.field === 'new_password' ? (
               <p className="text-xs text-danger mt-1">{passwordFieldError.message}</p>
@@ -169,7 +170,7 @@ export function ProfileForm({ user }: { user: CurrentUser }) {
           </div>
           <div>
             <Label htmlFor="confirmPassword" className="text-[11px] uppercase tracking-[0.15em] text-fg-3">Confirm new password</Label>
-            <Input id="confirmPassword" type="password" autoComplete="new-password"
+            <PasswordInput id="confirmPassword" autoComplete="new-password"
               value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="mt-1 bg-surface" />
             {passwordFieldError?.field === 'confirm_password' && (
               <p className="text-xs text-danger mt-1">{passwordFieldError.message}</p>

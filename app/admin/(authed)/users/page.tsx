@@ -97,7 +97,7 @@ export default async function AdminUsersPage({
                     <p className="text-xs text-fg-2">{u.email}</p>
                   </div>
                   <span className="text-xs text-fg-3 whitespace-nowrap">
-                    {new Date(u.createdAt).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    {new Date(u.createdAt).toLocaleDateString('en-NG', { timeZone: 'Africa/Lagos', day: 'numeric', month: 'short', year: 'numeric' })}
                   </span>
                   <ChevronRight className="h-4 w-4 text-fg-3 shrink-0" />
                 </Link>

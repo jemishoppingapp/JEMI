@@ -84,7 +84,7 @@ export default async function AdminUserDetailPage({
           <div><dt className="text-fg-2 text-xs mb-0.5">Department</dt><dd className="text-fg">{user.department || '—'}</dd></div>
           <div><dt className="text-fg-2 text-xs mb-0.5">Level</dt><dd className="text-fg">{user.level || '—'}</dd></div>
           <div><dt className="text-fg-2 text-xs mb-0.5">Joined</dt><dd className="text-fg">
-            {new Date(user.createdAt).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })}
+            {new Date(user.createdAt).toLocaleDateString('en-NG', { timeZone: 'Africa/Lagos', day: 'numeric', month: 'short', year: 'numeric' })}
           </dd></div>
           <div><dt className="text-fg-2 text-xs mb-0.5">Profile</dt>
             <dd className={user.profileCompleted ? 'text-success' : 'text-warning'}>
@@ -119,7 +119,7 @@ export default async function AdminUserDetailPage({
                     <p className="text-sm text-fg">{formatCurrency(Number(order.total))}</p>
                   </div>
                   <span className="text-xs text-fg-2 whitespace-nowrap">
-                    {new Date(order.createdAt).toLocaleDateString('en-NG', { day: 'numeric', month: 'short' })}
+                    {new Date(order.createdAt).toLocaleDateString('en-NG', { timeZone: 'Africa/Lagos', day: 'numeric', month: 'short' })}
                   </span>
                   <ChevronRight className="h-4 w-4 text-fg-3 shrink-0" />
                 </Link>

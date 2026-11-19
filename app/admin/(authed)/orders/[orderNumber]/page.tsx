@@ -74,7 +74,7 @@ export default async function AdminOrderDetailPage({
           </div>
           <p className="text-sm text-fg-2">
             Placed{' '}
-            {new Date(order.createdAt).toLocaleString('en-NG', {
+            {new Date(order.createdAt).toLocaleString('en-NG', { timeZone: 'Africa/Lagos',
               day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit',
             })}
           </p>
@@ -207,7 +207,7 @@ export default async function AdminOrderDetailPage({
                   <p className="text-sm font-medium text-fg capitalize">{entry.status.replace(/_/g, ' ')}</p>
                   {entry.note && <p className="text-xs text-fg-2 mt-0.5">{entry.note}</p>}
                   <p className="text-[11px] text-fg-3 mt-1">
-                    {new Date(entry.timestamp).toLocaleString('en-NG', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}
+                    {new Date(entry.timestamp).toLocaleString('en-NG', { timeZone: 'Africa/Lagos', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}
                   </p>
                 </div>
               </li>
@@ -221,6 +221,7 @@ export default async function AdminOrderDetailPage({
           orderNumber={order.orderNumber}
           canRefund={order.paymentStatus === 'paid' && order.escrowStatus !== 'refunded'}
           alreadyRefunded={order.escrowStatus === 'refunded'}
+          sellersAlreadyPaid={order.escrowStatus === 'released'}
         />
       </div>
 </div>

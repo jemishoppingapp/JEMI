@@ -9,7 +9,7 @@ import { ProductFilters } from '@/components/product/ProductFilters';
 import { ProductPagination } from '@/components/product/ProductPagination';
 import { TimeoutDetector } from '@/components/TimeoutDetector';
 import { db, schema } from '@/db';
-import { productCardColumns } from '@/lib/product-queries';
+import { productCardColumns, toProductCard } from '@/lib/product-queries';
 import type { ProductCardData } from '@/components/product/ProductCard';
 
 export const dynamic = 'force-dynamic';
@@ -78,19 +78,7 @@ async function fetchProducts(args: {
     ]);
 
     const total = totalRows[0]?.count ?? 0;
-    const products: ProductCardData[] = rows.map((d) => ({
-      _id: d.id,
-      slug: d.slug,
-      name: d.name,
-      price: Number(d.price),
-      originalPrice: d.originalPrice ? Number(d.originalPrice) : undefined,
-      imageUrl: d.images?.[0]?.url ?? '',
-      imageAlt: d.images?.[0]?.alt ?? d.name,
-      seller: d.seller,
-      rating: Number(d.rating),
-      reviewCount: d.reviewCount,
-      inStock: d.inStock,
-    }));
+    const products: ProductCardData[] = rows.map(toProductCard);
 
     return { products, total, totalPages: Math.max(1, Math.ceil(total / PAGE_SIZE)) };
   } catch (err) {

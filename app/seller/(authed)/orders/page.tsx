@@ -201,7 +201,7 @@ export default async function SellerOrdersPage({
                     <p className="text-xs text-fg-2">
                       {order.sellerItemCount} item{order.sellerItemCount === 1 ? '' : 's'} ·{' '}
                       {formatCurrency(order.sellerSubtotal)} ·{' '}
-                      {order.createdAt.toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      {order.createdAt.toLocaleDateString('en-NG', { timeZone: 'Africa/Lagos', day: 'numeric', month: 'short', year: 'numeric' })}
                     </p>
                   </div>
                   <ChevronRight className="h-4 w-4 text-fg-3 shrink-0" />

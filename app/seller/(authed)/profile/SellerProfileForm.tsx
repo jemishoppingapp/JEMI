@@ -6,6 +6,7 @@ import { Loader2, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { apiFetch, ApiError } from '@/lib/api-client';
 
@@ -252,7 +253,7 @@ export function SellerProfileForm({ user, seller }: { user: UserData; seller: Se
         <div className="space-y-4">
           <div>
             <Label htmlFor="currentPassword" className="text-fg-1">Current password</Label>
-            <Input id="currentPassword" type="password" autoComplete="current-password"
+            <PasswordInput id="currentPassword" autoComplete="current-password"
               value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)}
               className="mt-1.5 bg-surface" />
             {passwordFieldError?.field === 'current_password' && (
@@ -261,7 +262,7 @@ export function SellerProfileForm({ user, seller }: { user: UserData; seller: Se
           </div>
           <div>
             <Label htmlFor="newPassword" className="text-fg-1">New password</Label>
-            <Input id="newPassword" type="password" autoComplete="new-password"
+            <PasswordInput id="newPassword" autoComplete="new-password"
               value={newPassword} onChange={(e) => setNewPassword(e.target.value)} minLength={8}
               className="mt-1.5 bg-surface" />
             {passwordFieldError?.field === 'new_password' ? (
@@ -272,7 +273,7 @@ export function SellerProfileForm({ user, seller }: { user: UserData; seller: Se
           </div>
           <div>
             <Label htmlFor="confirmPassword" className="text-fg-1">Confirm new password</Label>
-            <Input id="confirmPassword" type="password" autoComplete="new-password"
+            <PasswordInput id="confirmPassword" autoComplete="new-password"
               value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
               className="mt-1.5 bg-surface" />
             {passwordFieldError?.field === 'confirm_password' && (

@@ -32,15 +32,10 @@ import { schema } from '@/db';
 import { ApiServerError } from '@/lib/api';
 import { generateOrderNumber, generatePickupCode } from '@/lib/utils';
 
-const DELIVERY_FEE = 500;
+import { DELIVERY_FEE, DELIVERY_ZONES, type DeliveryZoneSlug } from '@/lib/shop-config';
+
+export { DELIVERY_ZONES, type DeliveryZoneSlug };
 export const ORDER_TTL_MS = 60 * 60 * 1000; // 1 hour
-
-export const DELIVERY_ZONES = [
-  { slug: 'lasu-iba-gate', name: 'LASU Iba Gate', description: 'Main entrance' },
-  { slug: 'iyana-iba-gate', name: 'Iyana Iba Gate', description: 'Iyana Iba bus stop' },
-] as const;
-
-export type DeliveryZoneSlug = (typeof DELIVERY_ZONES)[number]['slug'];
 
 export interface CheckoutCartItem {
   productId: string;

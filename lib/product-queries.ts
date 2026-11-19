@@ -7,6 +7,7 @@
  * for nothing. Card views only need these.
  */
 import { schema } from '@/db';
+import type { ProductCardData } from '@/components/product/ProductCard';
 
 export const productCardColumns = {
   id: schema.products.id,
@@ -36,3 +37,27 @@ export const productPublicColumns = {
   isFeatured: schema.products.isFeatured,
   createdAt: schema.products.createdAt,
 };
+
+type CardRow = {
+  id: string; slug: string; name: string; price: string; originalPrice: string | null;
+  images: { url: string; alt?: string }[] | null; seller: string; rating: string;
+  reviewCount: number; inStock: boolean;
+};
+
+/** A row selected with productCardColumns -> what <ProductCard> needs.
+ *  (This mapping used to be copied into the home and shop pages.) */
+export function toProductCard(d: CardRow): ProductCardData {
+  return {
+    _id: d.id,
+    slug: d.slug,
+    name: d.name,
+    price: Number(d.price),
+    originalPrice: d.originalPrice ? Number(d.originalPrice) : undefined,
+    imageUrl: d.images?.[0]?.url ?? '',
+    imageAlt: d.images?.[0]?.alt ?? d.name,
+    seller: d.seller,
+    rating: Number(d.rating),
+    reviewCount: d.reviewCount,
+    inStock: d.inStock,
+  };
+}

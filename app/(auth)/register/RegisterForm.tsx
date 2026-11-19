@@ -6,6 +6,7 @@ import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { apiFetch, ApiError } from '@/lib/api-client';
 
@@ -68,7 +69,7 @@ export function RegisterForm() {
         </div>
         <div>
           <Label htmlFor="password" className="text-fg-1">Password</Label>
-          <Input id="password" type="password" autoComplete="new-password"
+          <PasswordInput id="password" autoComplete="new-password"
             value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8}
             className="mt-1.5" placeholder="At least 8 characters" />
           {fieldError?.field === 'password' ? (

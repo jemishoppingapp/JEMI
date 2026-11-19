@@ -87,7 +87,7 @@ export default async function SellerPendingPage() {
                 </div>
               </div>
               <p className="text-[11px] text-fg-3 mt-6">
-                Submitted {new Date(sellerRow.appliedAt).toLocaleString('en-NG', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                Submitted {new Date(sellerRow.appliedAt).toLocaleString('en-NG', { timeZone: 'Africa/Lagos', day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' })}
               </p>
             </div>
           )}

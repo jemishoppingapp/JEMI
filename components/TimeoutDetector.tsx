@@ -38,7 +38,7 @@ export function TimeoutDetector({
 
   if (tookTooLong) {
     return (
-      <div className="text-center py-12 text-sm text-gray-500">
+      <div className="text-center py-12 text-sm text-fg-2">
         <div className="inline-flex items-center gap-2">
           <span className="inline-block h-3 w-3 rounded-full bg-yellow-400 animate-pulse" />
           {longMessage}

@@ -4,9 +4,11 @@
  *   'paystack' — online payment via Paystack (escrow flow).
  *
  * Set by PAYMENT_MODE env var. Defaults to 'pod' for the launch phase.
- * The client reads NEXT_PUBLIC_PAYMENT_MODE (same value).
+ * Server pages pass this value down to client components as a prop, so
+ * there is ONE source of truth (no separate NEXT_PUBLIC_ variable).
  */
-export type PaymentMode = 'pod' | 'paystack';
+import type { PaymentMode } from '@/lib/shop-config';
+export type { PaymentMode };
 
 export function getPaymentMode(): PaymentMode {
   const m = (process.env.PAYMENT_MODE || 'pod').toLowerCase();

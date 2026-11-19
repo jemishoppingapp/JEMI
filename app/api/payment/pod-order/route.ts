@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { sql } from 'drizzle-orm';
 import { dbPool } from '@/db/pool';
+import { revalidateProductPages } from '@/lib/revalidate';
 import { requireAuth } from '@/lib/session';
 import { createPendingOrder } from '@/lib/checkout';
 import { getPaymentMode } from '@/lib/payment-mode';
@@ -106,6 +107,9 @@ export async function POST(req: Request) {
         WHERE id = ${result.orderId}
       `);
     });
+
+    // Stock just changed: refresh the cached product pages.
+    revalidateProductPages();
 
     // Email the buyer their confirmation. Never breaks the checkout.
     try {

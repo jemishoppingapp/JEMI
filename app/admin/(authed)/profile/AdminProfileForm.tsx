@@ -6,6 +6,7 @@ import { Loader2, KeyRound } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { apiFetch, ApiError } from '@/lib/api-client';
 
@@ -101,8 +102,8 @@ export function AdminProfileForm({ me }: { me: Me }) {
         <p className="text-sm text-fg-2 mb-4">Set a new password for your own admin account.</p>
         <div>
           <Label htmlFor="newPassword" className="text-fg-1">New password</Label>
-          <Input
-            id="newPassword" type="password" value={newPassword}
+          <PasswordInput
+            id="newPassword" value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
             className="mt-1.5" placeholder="At least 8 characters, a letter and a number"
           />

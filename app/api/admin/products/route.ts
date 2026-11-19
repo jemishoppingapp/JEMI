@@ -4,6 +4,7 @@ import { db, schema } from '@/db';
 import { requireAdmin } from '@/lib/session';
 import { productImageUrlSchema } from '@/lib/image-url';
 import { ok, fail, failValidation, withErrorHandling } from '@/lib/api';
+import { revalidateProductPages } from '@/lib/revalidate';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -77,6 +78,7 @@ export async function POST(req: Request) {
     const created = await db().select({ id: schema.products.id, slug: schema.products.slug })
       .from(schema.products).where(eq(schema.products.slug, parsed.slug)).limit(1);
 
+    revalidateProductPages();
     return ok({ id: created[0].id, slug: created[0].slug });
   });
 }

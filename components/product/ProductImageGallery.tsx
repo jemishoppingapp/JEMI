@@ -29,7 +29,7 @@ export function ProductImageGallery({
   if (images.length === 0) {
     // Defensive — caller should have filtered. Show a placeholder.
     return (
-      <div className="aspect-square w-full bg-surface-muted rounded-lg flex items-center justify-center text-sm text-gray-400">
+      <div className="aspect-square w-full bg-surface-muted rounded-lg flex items-center justify-center text-sm text-fg-3">
         No image
       </div>
     );

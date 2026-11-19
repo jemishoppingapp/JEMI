@@ -6,6 +6,7 @@ import { Loader2, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { apiFetch, ApiError } from '@/lib/api-client';
 
@@ -69,7 +70,7 @@ export function AdminLoginForm() {
 
         <div>
           <Label htmlFor="password" className="text-fg-1">Password</Label>
-          <Input id="password" type="password" autoComplete="current-password"
+          <PasswordInput id="password" autoComplete="current-password"
             value={password} onChange={(e) => setPassword(e.target.value)} required
             className="mt-1.5 bg-surface" placeholder="••••••••" />
         </div>

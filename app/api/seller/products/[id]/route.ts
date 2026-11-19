@@ -4,6 +4,7 @@ import { db, schema } from '@/db';
 import { requireSeller } from '@/lib/seller-session';
 import { productImageUrlSchema } from '@/lib/image-url';
 import { ok, fail, failValidation, withErrorHandling } from '@/lib/api';
+import { revalidateProductPages } from '@/lib/revalidate';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -23,7 +24,8 @@ const patchSchema = z.object({
   stockQuantity: z.number().int().min(0).optional(),
   isActive: z.boolean().optional(),
   features: z.array(z.string().trim().max(200)).optional(),
-  images: z.array(imageSchema).max(5).optional(),
+  // At least one image: a product with none breaks every grid it appears in.
+  images: z.array(imageSchema).min(1, 'Keep at least one image.').max(5).optional(),
 });
 
 export async function PATCH(
@@ -83,6 +85,7 @@ export async function PATCH(
       .set(updates)
       .where(and(eq(schema.products.id, id), eq(schema.products.sellerId, seller.id)));
 
+    revalidateProductPages();
     return ok({ saved: true });
   });
 }
@@ -107,6 +110,7 @@ export async function DELETE(
       .set({ isActive: false, updatedAt: new Date() })
       .where(and(eq(schema.products.id, id), eq(schema.products.sellerId, seller.id)));
 
+    revalidateProductPages();
     return ok({ deleted: true });
   });
 }

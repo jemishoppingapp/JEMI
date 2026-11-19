@@ -4,6 +4,7 @@ import { db, schema } from '@/db';
 import { requireSeller } from '@/lib/seller-session';
 import { productImageUrlSchema } from '@/lib/image-url';
 import { ok, fail, failValidation, withErrorHandling } from '@/lib/api';
+import { revalidateProductPages } from '@/lib/revalidate';
 import { notifyOps } from '@/lib/notify';
 
 export const dynamic = 'force-dynamic';
@@ -93,6 +94,7 @@ export async function POST(req: Request) {
       });
     } catch (e) { console.error('[notify]', e); }
 
+    revalidateProductPages();
     return ok({ id: created[0].id, slug: created[0].slug });
   });
 }

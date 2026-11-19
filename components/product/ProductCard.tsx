@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { Star } from 'lucide-react';
+import { ShoppingBag, Star } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { ProductAddToCart } from './ProductAddToCart';
 
@@ -28,13 +28,21 @@ export function ProductCard({ product }: { product: ProductCardData }) {
     <article>
       <Link href={`/products/${product.slug}`} className="block group">
         <div className="relative aspect-square w-full overflow-hidden bg-surface-1 rounded-xl mb-3 border border-border-soft group-hover:border-border transition-colors">
-          <Image
-            src={product.imageUrl}
-            alt={product.imageAlt || product.name}
-            fill
-            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-            className="object-cover object-center"
-          />
+          {product.imageUrl ? (
+            <Image
+              src={product.imageUrl}
+              alt={product.imageAlt || product.name}
+              fill
+              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+              className="object-cover object-center"
+            />
+          ) : (
+            // No image: next/image throws on an empty src, which used to
+            // crash the whole grid. Show a quiet placeholder instead.
+            <div className="absolute inset-0 flex items-center justify-center text-fg-3" aria-hidden>
+              <ShoppingBag className="h-8 w-8" />
+            </div>
+          )}
 
           {hasDiscount && discountPercent >= 5 && (
             <span className="absolute top-2.5 left-2.5 bg-primary text-primary-foreground px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider">

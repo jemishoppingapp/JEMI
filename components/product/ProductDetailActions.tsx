@@ -44,6 +44,8 @@ export function ProductDetailActions({ product }: { product: DetailProduct }) {
         price: product.price,
         imageUrl: product.imageUrl,
         seller: product.seller,
+        // So the cart never lets the buyer go above what's in stock.
+        maxQty: product.stockQuantity > 0 ? product.stockQuantity : undefined,
       },
       qty
     );

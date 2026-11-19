@@ -114,3 +114,13 @@ export function normalizeNigerianPhone(input: string): string | null {
   if (match) return '+234' + match[1];
   return null;
 }
+/**
+ * A `?from=` value that is safe to redirect to: a path on THIS site.
+ * "//evil.com" and "/\evil.com" start with "/" but browsers treat them
+ * as another website, so they are rejected. Anything unsafe -> fallback.
+ */
+export function safeRedirectPath(from: string | null | undefined, fallback = '/'): string {
+  if (!from || typeof from !== 'string') return fallback;
+  if (!from.startsWith('/') || from.startsWith('//') || from.startsWith('/\\')) return fallback;
+  return from;
+}

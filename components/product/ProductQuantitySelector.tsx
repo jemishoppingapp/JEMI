@@ -31,7 +31,7 @@ export function ProductQuantitySelector({
         type="button"
         onClick={() => onChange(clamp(value - 1))}
         disabled={disabled || value <= min}
-        className="tap inline-flex items-center justify-center h-11 w-11 text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+        className="tap inline-flex items-center justify-center h-11 w-11 text-fg-1 hover:bg-surface-1 disabled:cursor-not-allowed disabled:opacity-50"
         aria-label="Decrease quantity"
       >
         <Minus className="h-4 w-4" />
@@ -53,7 +53,7 @@ export function ProductQuantitySelector({
         type="button"
         onClick={() => onChange(clamp(value + 1))}
         disabled={disabled || value >= max}
-        className="tap inline-flex items-center justify-center h-11 w-11 text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+        className="tap inline-flex items-center justify-center h-11 w-11 text-fg-1 hover:bg-surface-1 disabled:cursor-not-allowed disabled:opacity-50"
         aria-label="Increase quantity"
       >
         <Plus className="h-4 w-4" />

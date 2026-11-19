@@ -11,14 +11,8 @@ import { useCartStore } from '@/store/cart';
 import { formatCurrency, cn } from '@/lib/utils';
 import { apiFetch, ApiError } from '@/lib/api-client';
 
-const DELIVERY_FEE = 500;
-const DELIVERY_ZONES = [
-  { slug: 'lasu-iba-gate', name: 'LASU Iba Gate', description: 'Main entrance' },
-  { slug: 'iyana-iba-gate', name: 'Iyana Iba Gate', description: 'Iyana Iba bus stop' },
-];
-
-// Which payment mode the storefront runs in. POD = pay the rep at the gate.
-const PAYMENT_MODE = process.env.NEXT_PUBLIC_PAYMENT_MODE === 'paystack' ? 'paystack' : 'pod';
+import { DELIVERY_FEE, DELIVERY_ZONES, type DeliveryZoneSlug, type PaymentMode } from '@/lib/shop-config';
+import { useCartSync } from '@/hooks/use-cart-sync';
 
 interface InitResp {
   authorization_url: string;
@@ -33,11 +27,19 @@ interface PodResp {
   mode: string;
 }
 
-export function CheckoutForm({ user }: { user: { id: string; email: string; name: string } }) {
+export function CheckoutForm({
+  user,
+  paymentMode,
+}: {
+  user: { id: string; email: string; name: string };
+  /** From the server (PAYMENT_MODE), so the form and the API always agree. */
+  paymentMode: PaymentMode;
+}) {
   const items = useCartStore((s) => s.items);
   const clearCart = useCartStore((s) => s.clear);
+  const { checking } = useCartSync(); // confirm current prices before paying
 
-  const [zone, setZone] = useState(DELIVERY_ZONES[0].slug);
+  const [zone, setZone] = useState<DeliveryZoneSlug>(DELIVERY_ZONES[0].slug);
   const [description, setDescription] = useState('');
   const [note, setNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -73,7 +75,7 @@ export function CheckoutForm({ user }: { user: { id: string; email: string; name
     };
 
     try {
-      if (PAYMENT_MODE === 'pod') {
+      if (paymentMode === 'pod') {
         const data = await apiFetch<PodResp>('/api/payment/pod-order', {
           method: 'POST',
           body: payload,
@@ -107,7 +109,7 @@ export function CheckoutForm({ user }: { user: { id: string; email: string; name
     }
   }
 
-  const isPod = PAYMENT_MODE === 'pod';
+  const isPod = paymentMode === 'pod';
 
   return (
     <form onSubmit={handleSubmit} className="grid lg:grid-cols-[1fr_380px] gap-10">
@@ -199,8 +201,10 @@ export function CheckoutForm({ user }: { user: { id: string; email: string; name
           </div>
         )}
 
-        <Button type="submit" variant="default" size="tap" className="w-full" disabled={submitting}>
-          {submitting ? (
+        <Button type="submit" variant="default" size="tap" className="w-full" disabled={submitting || checking}>
+          {checking ? (
+            <><Loader2 className="h-4 w-4 animate-spin" />Checking prices…</>
+          ) : submitting ? (
             <><Loader2 className="h-4 w-4 animate-spin" />{isPod ? 'Placing order…' : 'Connecting to Paystack…'}</>
           ) : (
             isPod ? 'Place order — pay on delivery' : `Pay ${formatCurrency(total)}`

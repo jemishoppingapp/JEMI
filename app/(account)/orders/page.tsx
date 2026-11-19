@@ -94,7 +94,7 @@ export default async function OrdersPage() {
                       {itemCount} item{itemCount === 1 ? '' : 's'} · {formatCurrency(Number(order.total))}
                     </p>
                     <p className="text-xs text-fg-2 mt-1">
-                      {new Date(order.createdAt).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      {new Date(order.createdAt).toLocaleDateString('en-NG', { timeZone: 'Africa/Lagos', day: 'numeric', month: 'short', year: 'numeric' })}
                     </p>
                   </div>
                   <ChevronRight className="h-4 w-4 text-fg-3 shrink-0 mt-1" aria-hidden />

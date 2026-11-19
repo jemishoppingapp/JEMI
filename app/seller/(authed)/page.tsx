@@ -259,7 +259,7 @@ export default async function SellerDashboardPage() {
                     </p>
                   </div>
                   <span className="text-xs text-fg-2 whitespace-nowrap">
-                    {order.createdAt.toLocaleDateString('en-NG', { day: 'numeric', month: 'short' })}
+                    {order.createdAt.toLocaleDateString('en-NG', { timeZone: 'Africa/Lagos', day: 'numeric', month: 'short' })}
                   </span>
                 </Link>
               </li>

@@ -12,33 +12,32 @@ import { HowItWorks } from '@/components/home/HowItWorks';
 import { TrustStrip } from '@/components/home/TrustStrip';
 import { FooterCTA } from '@/components/home/FooterCTA';
 import { db, schema } from '@/db';
-import { productCardColumns } from '@/lib/product-queries';
+import { productCardColumns, toProductCard } from '@/lib/product-queries';
 import type { ProductCardData } from '@/components/product/ProductCard';
 
-export const dynamic = 'force-dynamic';
+// Cached at Vercel's edge, rebuilt at most once a minute (and right away
+// when a product is saved; see revalidateProductPages()).
+export const revalidate = 60;
 
 async function getFeaturedProducts(): Promise<ProductCardData[]> {
   try {
-    const rows = await db()
+    const featured = await db()
       .select(productCardColumns)
       .from(schema.products)
       .where(and(eq(schema.products.isActive, true), eq(schema.products.isFeatured, true)))
       .orderBy(desc(schema.products.createdAt))
       .limit(8);
 
-    return rows.map((d) => ({
-      _id: d.id,
-      slug: d.slug,
-      name: d.name,
-      price: Number(d.price),
-      originalPrice: d.originalPrice ? Number(d.originalPrice) : undefined,
-      imageUrl: d.images?.[0]?.url ?? '',
-      imageAlt: d.images?.[0]?.alt ?? d.name,
-      seller: d.seller,
-      rating: Number(d.rating),
-      reviewCount: d.reviewCount,
-      inStock: d.inStock,
-    }));
+    // Nothing marked "featured" yet? Show the newest products instead of
+    // an empty "Nothing here yet" box when the shop actually has stock.
+    if (featured.length >= 4) return featured.map(toProductCard);
+    const newest = await db()
+      .select(productCardColumns)
+      .from(schema.products)
+      .where(and(eq(schema.products.isActive, true), eq(schema.products.isFeatured, false)))
+      .orderBy(desc(schema.products.createdAt))
+      .limit(8 - featured.length);
+    return [...featured, ...newest].map(toProductCard);
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error('[home] getFeaturedProducts failed:', err);

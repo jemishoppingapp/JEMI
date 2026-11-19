@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { apiFetch, ApiError } from '@/lib/api-client';
+import { safeRedirectPath } from '@/lib/utils';
 
 export function VerifyEmailForm({ from }: { from: string }) {
   const [code, setCode] = useState('');
@@ -23,7 +24,7 @@ export function VerifyEmailForm({ from }: { from: string }) {
     try {
       await apiFetch('/api/auth/verify-email', { method: 'POST', body: { code: code.trim() } });
       toast.success('Email verified!');
-      window.location.href = from;
+      window.location.href = safeRedirectPath(from);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'Verification failed');
       setBusy(false);

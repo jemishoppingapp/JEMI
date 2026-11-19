@@ -46,7 +46,7 @@ export function ConfirmReceiptButton({
         <div>
           <p className="text-sm font-semibold text-fg">You confirmed receipt</p>
           <p className="text-xs text-fg-2 mt-0.5">
-            {new Date(buyerReceivedAt).toLocaleString('en-NG', {
+            {new Date(buyerReceivedAt).toLocaleString('en-NG', { timeZone: 'Africa/Lagos',
               day: 'numeric', month: 'short', year: 'numeric',
               hour: 'numeric', minute: '2-digit',
             })}

@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { safeRedirectPath } from '@/lib/utils';
 import { apiFetch, ApiError } from '@/lib/api-client';
 
 const LEVELS = ['100 Level', '200 Level', '300 Level', '400 Level', '500 Level', 'Postgraduate', 'Staff', 'Non-student'];
@@ -31,7 +32,7 @@ export function ProfileCompleteForm({ defaults, fromPath }: { defaults: Defaults
         body: { phone, alt_phone: altPhone, address, department, level },
       });
       toast.success('Profile complete');
-      const next = fromPath && fromPath.startsWith('/') ? fromPath : '/';
+      const next = safeRedirectPath(fromPath);
       window.location.href = next;
     } catch (err) {
       if (err instanceof ApiError) {

@@ -49,10 +49,14 @@ interface FetchOpts {
 
 export async function apiFetch<T>(url: string, opts: FetchOpts = {}): Promise<T> {
   const method = opts.method ?? 'GET';
+  // Default 30s timeout: on a weak 3G connection a request can otherwise
+  // hang forever with the spinner going. A caller's own signal wins.
+  const timeoutSignal =
+    opts.signal ?? (typeof AbortSignal !== 'undefined' && 'timeout' in AbortSignal ? AbortSignal.timeout(30_000) : undefined);
   const init: RequestInit = {
     method,
     headers: { 'Content-Type': 'application/json', ...(opts.headers ?? {}) },
-    signal: opts.signal,
+    signal: timeoutSignal,
   };
   if (opts.body !== undefined && method !== 'GET') {
     init.body = JSON.stringify(opts.body);
@@ -61,7 +65,10 @@ export async function apiFetch<T>(url: string, opts: FetchOpts = {}): Promise<T>
   let res: Response;
   try {
     res = await fetch(url, init);
-  } catch {
+  } catch (e) {
+    if ((e as Error)?.name === 'TimeoutError') {
+      throw new ApiError('NETWORK_ERROR', 'This is taking too long. Check your connection and try again.', 0);
+    }
     // Network failed (offline, DNS issue, etc.) — never reached the server.
     throw new ApiError('NETWORK_ERROR', 'Connection problem. Check your internet and try again.', 0);
   }

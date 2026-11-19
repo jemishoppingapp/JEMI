@@ -44,7 +44,7 @@ export function HeaderCategories() {
                   'inline-flex items-center gap-1.5 h-7 px-3 rounded-full text-xs whitespace-nowrap transition-colors',
                   isActive
                     ? 'bg-primary text-primary-foreground'
-                    : 'text-gray-300 hover:text-white hover:bg-gray-800'
+                    : 'text-fg-2 hover:text-fg hover:bg-surface-2'
                 )}
               >
                 {cat.icon && <span aria-hidden>{cat.icon}</span>}

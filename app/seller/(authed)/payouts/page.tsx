@@ -84,7 +84,7 @@ export default async function SellerPayoutsPage() {
                     </span>
                   </div>
                   <p className="text-xs text-fg-2">
-                    {new Date(p.createdAt).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    {new Date(p.createdAt).toLocaleDateString('en-NG', { timeZone: 'Africa/Lagos', day: 'numeric', month: 'short', year: 'numeric' })}
                     {p.transferRef && <span className="font-mono text-fg-3"> · {p.transferRef}</span>}
                   </p>
                 </div>

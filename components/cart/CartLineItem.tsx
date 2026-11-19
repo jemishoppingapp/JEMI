@@ -41,7 +41,7 @@ export function CartLineItem({ item, compact = false }: { item: CartItem; compac
             <button
               type="button"
               onClick={() => updateQuantity(item.productId, item.quantity + 1)}
-              disabled={item.quantity >= MAX_QTY_PER_ITEM}
+              disabled={item.quantity >= Math.min(MAX_QTY_PER_ITEM, item.maxQty ?? MAX_QTY_PER_ITEM)}
               className="tap inline-flex items-center justify-center h-8 w-8 text-fg-1 hover:bg-surface-1 rounded-r-full disabled:opacity-40 disabled:cursor-not-allowed"
               aria-label="Increase"
             >

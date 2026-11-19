@@ -11,13 +11,16 @@ interface Props {
   orderNumber: string;
   canRefund: boolean;       // paid + not already refunded
   alreadyRefunded: boolean;
+  /** Escrow already released: refunding now means JEMI pays twice (V12). */
+  sellersAlreadyPaid?: boolean;
 }
 
-export function AdminRefundButton({ orderNumber, canRefund, alreadyRefunded }: Props) {
+export function AdminRefundButton({ orderNumber, canRefund, alreadyRefunded, sellersAlreadyPaid = false }: Props) {
   const router = useRouter();
   const [reasonOpen, setReasonOpen] = useState(false);
   const [reason, setReason] = useState('');
   const [refunding, setRefunding] = useState(false);
+  const [override, setOverride] = useState(false);
 
   if (alreadyRefunded) {
     return (
@@ -42,7 +45,7 @@ export function AdminRefundButton({ orderNumber, canRefund, alreadyRefunded }: P
     try {
       await apiFetch(`/api/admin/orders/${orderNumber}/refund`, {
         method: 'POST',
-        body: { reason: reason.trim() },
+        body: { reason: reason.trim(), ...(override ? { override: true } : {}) },
       });
       toast.success('Refund initiated. Paystack will process it within 5–10 business days.');
       router.refresh();
@@ -79,12 +82,21 @@ export function AdminRefundButton({ orderNumber, canRefund, alreadyRefunded }: P
         rows={3}
         maxLength={500}
         placeholder="e.g. Order cancelled at buyer's request; seller failed to deliver"
-        className="w-full px-3 py-2 rounded-md border bg-surface text-sm focus:outline-none focus:ring-2 focus:ring-primary mb-3"
+        className="w-full px-3 py-2 rounded-md border border-border bg-surface text-sm text-fg focus:outline-none focus:ring-2 focus:ring-primary mb-3"
       />
+      {sellersAlreadyPaid && (
+        <label className="flex items-start gap-2 mb-3 rounded-md border border-warning/40 bg-warning/10 p-3 text-xs text-fg-1">
+          <input type="checkbox" checked={override} onChange={(e) => setOverride(e.target.checked)} className="mt-0.5 accent-primary" />
+          <span>
+            <span className="font-semibold text-fg">Sellers were already paid for this order.</span>{' '}
+            Refunding the buyer too means JEMI pays twice. Tick only if you have recovered the money from the seller.
+          </span>
+        </label>
+      )}
       <div className="flex gap-2">
-        <Button type="button" variant="default" size="tap"
-          onClick={handleRefund} disabled={refunding || reason.trim().length < 5}
-          className="text-danger">
+        <Button type="button" variant="destructive" size="tap"
+          onClick={handleRefund}
+          disabled={refunding || reason.trim().length < 5 || (sellersAlreadyPaid && !override)}>
           {refunding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Undo2 className="h-4 w-4" />}
           Confirm refund
         </Button>
