@@ -3,7 +3,7 @@ import { Mail, MessageCircle } from 'lucide-react';
 import { Container } from '@/components/Container';
 import { SITE } from '@/lib/site';
 
-export const metadata: Metadata = { title: 'Contact', alternates: { canonical: '/contact' } };
+export const metadata: Metadata = { title: 'Contact JEMI', description: 'Contact JEMI, the LASU campus marketplace, by WhatsApp or email.', alternates: { canonical: '/contact' } };
 
 export default function ContactPage() {
   return (

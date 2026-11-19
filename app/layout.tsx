@@ -17,7 +17,8 @@ import { ThemeProvider } from '@/components/ThemeProvider';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { nunito } from '@/lib/fonts';
 import './globals.css';
-import { SITE_URL } from '@/lib/site';
+import { SITE, SITE_URL } from '@/lib/site';
+import { SITE_TITLE, SITE_DESCRIPTION, SITE_KEYWORDS } from '@/lib/seo';
 
 
 
@@ -33,24 +34,24 @@ function buildOgImage(): string {
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  title: { default: 'JEMI — LASU Campus Marketplace', template: '%s | JEMI' },
-  description: 'Quality products at student-friendly prices. Order online, pick up on campus at LASU.',
+  title: { default: SITE_TITLE, template: '%s | JEMI' },
+  description: SITE_DESCRIPTION,
   applicationName: 'JEMI',
-  keywords: ['LASU', 'Lagos State University', 'campus marketplace', 'student shopping', 'Nigeria', 'Lagos'],
+  keywords: SITE_KEYWORDS,
   authors: [{ name: 'JEMI' }],
   openGraph: {
     type: 'website',
     siteName: 'JEMI',
-    title: 'JEMI — LASU Campus Marketplace',
-    description: 'Quality products at student-friendly prices. Order online, pick up on campus at LASU.',
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
     url: SITE_URL,
     locale: 'en_NG',
     images: [{ url: buildOgImage(), width: 1200, height: 630, alt: 'JEMI' }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'JEMI — LASU Campus Marketplace',
-    description: 'Quality products at student-friendly prices.',
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
     images: [buildOgImage()],
   },
   icons: {
@@ -86,13 +87,33 @@ export const viewport: Viewport = {
 // to light if the user has explicitly saved 'light' to localStorage.
 const NO_FOWT_SCRIPT = `(function(){try{var t=localStorage.getItem('jemi-theme');var d=t==='light'?false:true;if(d)document.documentElement.classList.add('dark');}catch(e){document.documentElement.classList.add('dark');}})();`;
 
+// Structured data Google reads to understand the business:
+//  - WebSite + SearchAction: lets Google show a search box for JEMI
+//  - OnlineStore: who JEMI is, where it serves, how to contact it
+const jsonLdWebsite = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: 'JEMI',
+  alternateName: ['JEMI LASU', 'JEMI Campus Marketplace'],
+  url: SITE_URL,
+  potentialAction: {
+    '@type': 'SearchAction',
+    target: { '@type': 'EntryPoint', urlTemplate: `${SITE_URL}/products?q={search_term_string}` },
+    'query-input': 'required name=search_term_string',
+  },
+};
+
 const jsonLd = {
   '@context': 'https://schema.org',
   '@type': 'OnlineStore',
   name: 'JEMI',
+  legalName: 'JEMI LTD',
   url: SITE_URL,
   logo: buildOgImage(),
-  description: 'LASU campus marketplace — quality products at student-friendly prices, with on-campus pickup.',
+  email: SITE.supportEmail,
+  telephone: SITE.whatsapp,
+  ...(SITE.instagram ? { sameAs: [SITE.instagram] } : {}),
+  description: SITE_DESCRIPTION,
   areaServed: {
     '@type': 'EducationalOrganization',
     name: 'Lagos State University',
@@ -114,6 +135,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdWebsite) }}
         />
       </head>
       <body className="antialiased">

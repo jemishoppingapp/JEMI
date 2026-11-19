@@ -26,7 +26,7 @@ export const revalidate = 3600;
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   try {
     const products = await db()
-      .select({ slug: schema.products.slug, updatedAt: schema.products.updatedAt })
+      .select({ slug: schema.products.slug, updatedAt: schema.products.updatedAt, images: schema.products.images })
       .from(schema.products)
       .where(eq(schema.products.isActive, true));
 
@@ -35,6 +35,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: p.updatedAt,
       changeFrequency: 'weekly',
       priority: 0.6,
+      // Product photos in the sitemap help them show up in Google Images.
+      images: (p.images ?? []).map((i) => i.url).filter(Boolean).slice(0, 5),
     }));
 
     return [...STATIC_ROUTES, ...productRoutes];

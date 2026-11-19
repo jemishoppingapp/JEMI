@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { Container } from '@/components/Container';
+import { CATEGORY_SEO } from '@/lib/seo';
 
 const NAV_LINKS = [
   { href: '/products', label: 'Shop' },
@@ -8,6 +9,13 @@ const NAV_LINKS = [
   { href: '/profile', label: 'My account' },
   { href: '/become-a-seller', label: 'Sell on JEMI' },
 ];
+
+// Category links on every page: helps Google find and rank the
+// category pages (and gives shoppers a shortcut).
+const CATEGORY_LINKS = Object.entries(CATEGORY_SEO).map(([slug, c]) => ({
+  href: `/products?category=${slug}`,
+  label: c.name,
+}));
 
 const INFO_LINKS = [
   { href: '/about', label: 'About' },
@@ -21,7 +29,7 @@ export function Footer() {
   return (
     <footer className="border-t border-border-soft bg-surface">
       <Container className="py-12 sm:py-16">
-        <div className="grid grid-cols-2 gap-10 sm:grid-cols-3 mb-10">
+        <div className="grid grid-cols-2 gap-10 sm:grid-cols-4 mb-10">
           <div className="col-span-2 sm:col-span-1">
             <Link href="/" className="inline-flex items-center gap-2.5 mb-4">
               <Image
@@ -36,8 +44,8 @@ export function Footer() {
               </span>
             </Link>
             <p className="text-sm text-fg-2 max-w-xs leading-relaxed">
-              Your campus marketplace for quality products at LASU.
-              Order online, pick up on campus.
+              The campus marketplace for Lagos State University (LASU).
+              Order online, pick up at the gate.
             </p>
           </div>
 
@@ -47,6 +55,21 @@ export function Footer() {
             </h3>
             <ul className="space-y-3">
               {NAV_LINKS.map((l) => (
+                <li key={l.href}>
+                  <Link href={l.href} className="text-sm text-fg hover:text-primary transition-colors">
+                    {l.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div>
+            <h3 className="text-[11px] font-medium text-fg-2 uppercase tracking-[0.18em] mb-4">
+              Categories
+            </h3>
+            <ul className="space-y-3">
+              {CATEGORY_LINKS.map((l) => (
                 <li key={l.href}>
                   <Link href={l.href} className="text-sm text-fg hover:text-primary transition-colors">
                     {l.label}

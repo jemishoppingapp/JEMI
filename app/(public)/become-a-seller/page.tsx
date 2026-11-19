@@ -4,8 +4,8 @@ import { ArrowRight, Check, Clock, Wallet, ShieldCheck } from 'lucide-react';
 import { Container } from '@/components/Container';
 
 export const metadata: Metadata = {
-  title: 'Sell on JEMI',
-  description: 'Sell your products to LASU students. Set up your store in minutes, get paid weekly via Paystack.',
+  title: 'Sell on JEMI: Sell to LASU Students',
+  description: 'Sell your products to LASU students on JEMI. Set up your shop in minutes, we handle pickup at the LASU gate, and you get paid to your bank account.',
   alternates: { canonical: '/become-a-seller' },
 };
 

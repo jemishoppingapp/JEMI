@@ -10,6 +10,7 @@ import { ProductPagination } from '@/components/product/ProductPagination';
 import { TimeoutDetector } from '@/components/TimeoutDetector';
 import { db, schema } from '@/db';
 import { productCardColumns, toProductCard } from '@/lib/product-queries';
+import { categoryCopy } from '@/lib/seo';
 import type { ProductCardData } from '@/components/product/ProductCard';
 
 export const dynamic = 'force-dynamic';
@@ -38,10 +39,19 @@ export async function generateMetadata({
     return { title: `Search: ${q}`, description: `Search results for "${q}".`, robots: { index: false } };
   }
   if (category && category !== 'all') {
-    const niceName = category.charAt(0).toUpperCase() + category.slice(1);
-    return { title: `${niceName}`, description: `Shop ${niceName} on JEMI.`, alternates: { canonical } };
+    const c = categoryCopy(category);
+    return {
+      title: page > 1 ? `${c.title} (page ${page})` : c.title,
+      description: c.description,
+      alternates: { canonical },
+      openGraph: { title: c.title, description: c.description },
+    };
   }
-  return { title: 'Shop', description: 'Browse all products on JEMI.', alternates: { canonical } };
+  return {
+    title: page > 1 ? `Shop everything at LASU (page ${page})` : 'Shop everything at LASU',
+    description: 'Browse everything for sale from sellers around Lagos State University (LASU). Order online, pick up at the LASU gate for ₦500.',
+    alternates: { canonical },
+  };
 }
 
 async function fetchProducts(args: {
@@ -141,7 +151,6 @@ async function ProductsResults({
   );
 }
 
-function capitalize(s: string): string { return s.charAt(0).toUpperCase() + s.slice(1); }
 
 export default async function ProductsPage({
   searchParams,
@@ -161,8 +170,15 @@ export default async function ProductsPage({
           {q ? 'Search results' : 'Shop'}
         </p>
         <h1 className="font-display text-3xl sm:text-4xl lg:text-5xl font-semibold text-fg leading-tight">
-          {q ? `"${q}"` : category !== 'all' ? capitalize(category) : 'All products'}
+          {q ? `"${q}"` : category !== 'all' ? `${categoryCopy(category).name} at LASU` : 'All products'}
         </h1>
+        {!q && (
+          <p className="text-sm text-fg-2 mt-2 max-w-xl">
+            {category !== 'all'
+              ? categoryCopy(category).intro
+              : 'Everything for sale from sellers on and around LASU campus. Order here, collect at the gate.'}
+          </p>
+        )}
       </div>
 
       <div className="mb-8">

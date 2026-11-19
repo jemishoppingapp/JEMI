@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { Container } from '@/components/Container';
 
-export const metadata: Metadata = { title: 'About', alternates: { canonical: '/about' } };
+export const metadata: Metadata = { title: 'About JEMI: LASU Campus Marketplace', description: 'About JEMI, the LASU campus marketplace: order from sellers around Lagos State University and pick up at the gate.', alternates: { canonical: '/about' } };
 
 export default function AboutPage() {
   return (

@@ -50,3 +50,14 @@ Checks run: `tsc --noEmit` is clean and `next build` with lint passes with no wa
 - **Sitemap:** added become-a-seller, about, contact, terms and privacy. It's cached for 1 hour instead of querying the database on every crawler hit.
 - **robots.txt:** now also keeps the seller dashboard, seller-pending and verify-email pages out of search.
 - **Optional `GOOGLE_SITE_VERIFICATION` env var** for Search Console's HTML-tag method. The DNS method needs no code.
+
+## Round 4: search wording (same day)
+- **`lib/seo.ts`** holds all the search wording: site title, description, keywords, and a title, description and intro for each category. Edit the words there.
+- **Homepage:** title "JEMI: LASU Campus Marketplace. Buy Online, Pick Up at the Gate", with a description naming Lagos State University, Ojo and both gates. The page's H1 is now "JEMI: the LASU campus marketplace"; the slogan looks the same.
+- **Category pages:** for example "Fashion at LASU: Clothes, Shoes & Bags", each with its own description, an "… at LASU" heading and a short intro line.
+- **Product pages:** the title is "Name: ₦price at LASU", with a description that mentions pickup at LASU. They also get breadcrumb data, so Google shows JEMI › Fashion › Item.
+- **Structured data:** a WebSite entry with a search box (Google can show a JEMI search box), and the OnlineStore entry now has JEMI LTD's name, email and phone.
+- **Sitemap:** product photos are listed, for Google Images.
+- **Footer:** "Categories" links on every page, so Google finds the category pages.
+- **Loading screen:** no longer an `<h1>`. Google read "Loading…" as the shop page's main heading.
+- **Titles and descriptions** for About, Contact, Terms, Privacy and Become-a-seller.

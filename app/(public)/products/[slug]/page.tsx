@@ -10,6 +10,7 @@ import { ProductDetailActions } from '@/components/product/ProductDetailActions'
 import { db, schema } from '@/db';
 import { formatCurrency } from '@/lib/utils';
 import { getPaymentMode } from '@/lib/payment-mode';
+import { categoryCopy } from '@/lib/seo';
 import { SITE_URL } from '@/lib/site';
 
 // Cached at Vercel's edge, rebuilt at most once a minute (and right away
@@ -50,13 +51,21 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const doc = await fetchProduct(slug);
   if (!doc) return { title: 'Product not found' };
   const firstImage = doc.images?.[0]?.url;
+  // "Name: ₦8,500 at LASU" matches how students search ("hoodie LASU",
+  // "iphone charger price"), and the price in the result gets clicks.
+  const price = formatCurrency(Number(doc.price));
+  const title = `${doc.name}: ${price} at LASU`;
+  const pitch = `Buy ${doc.name} for ${price} on JEMI. Order online, pick up at LASU Iba Gate or Iyana Iba Gate and pay when you collect.`;
+  const description = (doc.description?.trim()
+    ? `${doc.description.trim().replace(/\s+/g, ' ').slice(0, 110).replace(/[\s.,;:!?-]+$/, '')}. ${price}, pick up at LASU.`
+    : pitch).slice(0, 160);
   return {
-    title: doc.name,
-    description: doc.description?.slice(0, 160) ?? `${doc.name} on JEMI.`,
+    title,
+    description,
     alternates: { canonical: `/products/${doc.slug}` },
     openGraph: {
-      title: doc.name,
-      description: doc.description?.slice(0, 160),
+      title,
+      description,
       images: firstImage ? [{ url: firstImage, width: 1200, height: 1200, alt: doc.name }] : undefined,
       type: 'website',
     },
@@ -77,6 +86,17 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
     product.images.length > 0
       ? product.images.map((i) => ({ url: i.url, alt: i.alt || product.name }))
       : [{ url: '', alt: product.name }];
+
+  // Breadcrumb trail Google shows under the result: JEMI > Fashion > Item
+  const breadcrumbLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'JEMI', item: SITE_URL },
+      { '@type': 'ListItem', position: 2, name: categoryCopy(product.category).name, item: `${SITE_URL}/products?category=${product.category}` },
+      { '@type': 'ListItem', position: 3, name: product.name, item: `${SITE_URL}/products/${product.slug}` },
+    ],
+  };
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -102,6 +122,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
   return (
     <Container className="py-6 sm:py-10">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }} />
 
       <nav aria-label="Breadcrumb" className="mb-6 text-xs text-fg-3">
         <ol className="flex items-center gap-1.5">

@@ -12,17 +12,20 @@ export function HomeHero() {
     <section className="border-b border-border-soft">
       <Container className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center py-16 sm:py-24 lg:py-28">
         <div>
-          <p className="text-[11px] uppercase tracking-[0.2em] text-primary font-medium mb-6">
-            LASU campus marketplace
-          </p>
-          <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-extrabold text-fg leading-[1.05] mb-6">
+          {/* The page's H1 is what Google reads as "what this site is", so it
+              carries the search words; the big slogan is styled the same as
+              before but is a paragraph. */}
+          <h1 className="text-[11px] uppercase tracking-[0.2em] text-primary font-medium mb-6">
+            JEMI: the LASU campus marketplace
+          </h1>
+          <p className="font-display text-4xl sm:text-5xl lg:text-6xl font-extrabold text-fg leading-[1.05] mb-6">
             Order online.<br />
             Pick up at the gate.<br />
             <span className="text-primary">Same day.</span>
-          </h1>
+          </p>
           <p className="text-base sm:text-lg text-fg-2 mb-8 max-w-md leading-relaxed">
-            Buy from sellers on and around campus. Pay securely, collect at
-            either LASU gate for a flat ₦500. No dispatch stories.
+            Buy from sellers on and around Lagos State University. Collect at
+            either LASU gate for a flat ₦500 and pay when you pick up. No dispatch stories.
           </p>
           <div className="flex flex-col sm:flex-row gap-3">
             <Link

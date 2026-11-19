@@ -114,9 +114,11 @@ export function BrandedFallback({ variant, title, message, reset }: Props) {
           )}
         </div>
 
-        <h1 className="text-xl font-semibold text-fg mb-2">
+        {/* Not an <h1>: this loading screen streams first, and Google would
+            read "Loading…" as the page's main heading. */}
+        <p className="text-xl font-semibold text-fg mb-2">
           {finalTitle}
-        </h1>
+        </p>
         <p className="text-sm text-fg-2 mb-6 max-w-sm mx-auto">
           {finalMessage}
         </p>
