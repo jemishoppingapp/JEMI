@@ -9,6 +9,7 @@ import {
 import { db, schema } from '@/db';
 import { cn } from '@/lib/utils';
 import { AdminSellerActions } from './AdminSellerActions';
+import { requireAdmin } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { title: 'Seller Detail', robots: { index: false } };
@@ -37,6 +38,7 @@ export default async function AdminSellerDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const admin = await requireAdmin();
   const { id } = await params;
 
   const rows = await db()
@@ -95,13 +97,20 @@ export default async function AdminSellerDetailPage({
         )}
       </div>
 
-      {/* Actions */}
-      <AdminSellerActions
-        sellerId={seller.id}
-        status={seller.status}
-        businessName={seller.businessName}
-        activeProductCount={activeProductCount}
-      />
+      {/* Actions: approving, rejecting and suspending sellers is a super
+          admin decision. */}
+      {admin.is_super_admin ? (
+        <AdminSellerActions
+          sellerId={seller.id}
+          status={seller.status}
+          businessName={seller.businessName}
+          activeProductCount={activeProductCount}
+        />
+      ) : (
+        <div className="bg-surface border border-border-soft rounded-2xl p-5 text-sm text-fg-2">
+          Only a super admin can approve, reject or suspend sellers.
+        </div>
+      )}
 
       {/* Rejection reason if rejected */}
       {seller.status === 'rejected' && seller.rejectionReason && (

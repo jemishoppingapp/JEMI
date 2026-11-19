@@ -4,6 +4,7 @@ import { and, desc, eq, ilike, or, sql, type SQL } from 'drizzle-orm';
 import { ChevronRight, Search } from 'lucide-react';
 import { db, schema } from '@/db';
 import { formatCurrency, cn } from '@/lib/utils';
+import { DELIVERY_ZONES } from '@/lib/shop-config';
 
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { title: 'Admin Orders', robots: { index: false } };
@@ -22,8 +23,9 @@ const STATUS_COLOR: Record<string, string> = {
 };
 
 const FILTERS = [
+  { slug: 'to_collect', label: 'To collect' },
   { slug: 'all', label: 'All' },
-  { slug: 'pending', label: 'Pending' },
+  { slug: 'pending', label: 'Unpaid' },
   { slug: 'confirmed', label: 'Confirmed' },
   { slug: 'processing', label: 'Processing' },
   { slug: 'ready_for_pickup', label: 'Ready' },
@@ -42,6 +44,7 @@ export default async function AdminOrdersPage({
 }) {
   const sp = await searchParams;
   const statusFilter = sp.status ?? 'all';
+  const DELIVERY_NAME: Record<string, string> = Object.fromEntries(DELIVERY_ZONES.map((z) => [z.slug, z.name]));
   const q = sp.q?.trim() ?? '';
   const page = Math.max(1, parseInt(sp.page ?? '1', 10) || 1);
   const offset = (page - 1) * PAGE_SIZE;
@@ -49,12 +52,19 @@ export default async function AdminOrdersPage({
   const conditions: SQL[] = [];
   const VALID_STATUSES = ['pending', 'confirmed', 'processing', 'ready_for_pickup', 'completed', 'cancelled'] as const;
   type OrderStatus = (typeof VALID_STATUSES)[number];
-  if (statusFilter !== 'all' && (VALID_STATUSES as readonly string[]).includes(statusFilter)) {
+  if (statusFilter === 'to_collect') {
+    // Waiting at the gate: pay-on-delivery, not collected, not cancelled.
+    conditions.push(sql`${schema.orders.paymentStatus} = 'pay_on_delivery' AND ${schema.orders.status} <> 'cancelled'`);
+  } else if (statusFilter !== 'all' && (VALID_STATUSES as readonly string[]).includes(statusFilter)) {
     conditions.push(eq(schema.orders.status, statusFilter as OrderStatus));
   }
   if (q) {
+    // A 6-character code is most likely a PICKUP CODE the buyer is showing
+    // at the gate: match it exactly inside the order's sub-orders.
+    const maybeCode = q.replace(/\s+/g, '').toUpperCase();
     conditions.push(or(
       ilike(schema.orders.orderNumber, `%${q}%`),
+      sql`${schema.orders.subOrders} @> ${JSON.stringify([{ pickupCode: maybeCode }])}::jsonb`,
       sql`EXISTS (SELECT 1 FROM users WHERE users.id = ${schema.orders.userId} AND (users.email ILIKE ${'%' + q + '%'} OR users.name ILIKE ${'%' + q + '%'}))`
     )!);
   }
@@ -71,6 +81,8 @@ export default async function AdminOrdersPage({
         userName: schema.users.name,
         total: schema.orders.total,
         status: schema.orders.status,
+        paymentStatus: schema.orders.paymentStatus,
+        deliveryZone: schema.orders.deliveryZone,
         subOrders: schema.orders.subOrders,
         createdAt: schema.orders.createdAt,
       })
@@ -138,7 +150,7 @@ export default async function AdminOrdersPage({
               name="q"
               type="search"
               defaultValue={q}
-              placeholder="Search by order # or buyer"
+              placeholder="Pickup code, order # or buyer"
               className="flex-1 bg-transparent border-0 outline-none text-sm text-fg placeholder:text-fg-3"
             />
           </div>
@@ -173,13 +185,21 @@ export default async function AdminOrdersPage({
                         )}>
                           {STATUS_LABEL[order.status] || order.status}
                         </span>
+                        {order.paymentStatus === 'pay_on_delivery' && order.status !== 'cancelled' && (
+                          <span className="inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full text-warning bg-warning/10">
+                            Collect {formatCurrency(Number(order.total))}
+                          </span>
+                        )}
+                        {order.paymentStatus === 'collected' && (
+                          <span className="inline-flex items-center text-[10px] font-medium px-2 py-0.5 rounded-full text-success bg-success/10">Collected</span>
+                        )}
                       </div>
                       <p className="text-sm font-medium text-fg mb-0.5">
                         {order.userName || 'Unknown buyer'}
                         <span className="text-fg-3 font-normal ml-2">{order.userEmail}</span>
                       </p>
                       <p className="text-xs text-fg-2">
-                        {itemCount} item{itemCount === 1 ? '' : 's'} · {formatCurrency(Number(order.total))} ·{' '}
+                        {itemCount} item{itemCount === 1 ? '' : 's'} · {formatCurrency(Number(order.total))} · {DELIVERY_NAME[order.deliveryZone] ?? order.deliveryZone} ·{' '}
                         {new Date(order.createdAt).toLocaleString('en-NG', { timeZone: 'Africa/Lagos', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}
                       </p>
                     </div>

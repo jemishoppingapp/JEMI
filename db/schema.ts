@@ -86,6 +86,10 @@ export const users = pgTable(
      *  change. Every login cookie carries the value it was issued with;
      *  a mismatch means "log this session out". */
     tokenVersion: integer('token_version').notNull().default(0),
+    /** Admin level. role='admin' + true = SUPER admin (roles, money,
+     *  sellers, margins, activity log). role='admin' + false = STAFF admin
+     *  (orders, gate collection, products, users' profiles). */
+    isSuperAdmin: boolean('is_super_admin').notNull().default(false),
     /** harden-1: login rate limiting */
     failedLoginAttempts: integer('failed_login_attempts').notNull().default(0),
     lockedUntil: timestamp('locked_until', { withTimezone: true }),
@@ -267,6 +271,8 @@ export const orders = pgTable(
     paymentStatusIdx: index('orders_payment_status_idx').on(t.paymentStatus),
     // Seller + admin lists filter by payment status and sort newest first.
     paymentStatusCreatedIdx: index('orders_payment_status_created_idx').on(t.paymentStatus, t.createdAt),
+    // Admin "find by pickup code" (sub_orders @> '[{"pickupCode":"..."}]').
+    subOrdersGinIdx: index('orders_sub_orders_gin_idx').using('gin', sql`${t.subOrders} jsonb_path_ops`),
     // Partial unique on paystackReference (Postgres equivalent of Mongo's
     // sparse unique). Empty string is the default before init.
     paystackRefUnique: uniqueIndex('orders_paystack_ref_unique')
@@ -443,3 +449,26 @@ export const rateLimits = pgTable('rate_limits', {
   count: integer('count').notNull().default(0),
   windowStart: timestamp('window_start', { withTimezone: true }).notNull().defaultNow(),
 });
+
+// ============================================================
+// Admin activity log: who did what in /admin. Append-only.
+// action examples: 'user.role', 'user.disable', 'order.refund',
+// 'payout.create', 'seller.status', 'order.collect', 'product.margin'
+// ============================================================
+export const adminAuditLog = pgTable(
+  'admin_audit_log',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    actorId: uuid('actor_id'),
+    actorEmail: varchar('actor_email', { length: 255 }).notNull().default(''),
+    action: varchar('action', { length: 50 }).notNull(),
+    targetType: varchar('target_type', { length: 30 }).notNull().default(''),
+    targetId: varchar('target_id', { length: 100 }).notNull().default(''),
+    summary: text('summary').notNull().default(''),
+    details: jsonb('details').$type<Record<string, unknown>>().notNull().default({}),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    createdIdx: index('admin_audit_log_created_idx').on(t.createdAt),
+  })
+);

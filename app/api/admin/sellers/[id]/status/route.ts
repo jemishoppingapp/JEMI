@@ -1,7 +1,8 @@
 import { sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { dbPool } from '@/db/pool';
-import { requireAdmin } from '@/lib/session';
+import { requireSuperAdmin } from '@/lib/session';
+import { logAdminAction } from '@/lib/audit';
 import { ok, fail, failValidation, withErrorHandling } from '@/lib/api';
 import { sendEmail, sellerApprovedHtml } from '@/lib/email';
 import { SITE_URL } from '@/lib/site';
@@ -28,9 +29,9 @@ export async function POST(
   return withErrorHandling(async () => {
     let admin;
     try {
-      admin = await requireAdmin();
+      admin = await requireSuperAdmin(); // money/seller decisions: super admins only
     } catch {
-      return fail('FORBIDDEN', 'Admin access required.');
+      return fail('FORBIDDEN', 'Only a super admin can do that.');
     }
 
     const { id } = await params;
@@ -141,6 +142,9 @@ export async function POST(
         } catch (e) { console.error('[seller-approved-email]', e); }
       }
 
+      await logAdminAction(admin, 'seller.status', { type: 'seller', id },
+        `Seller set to ${parsed.status}${parsed.rejection_reason ? `: ${parsed.rejection_reason}` : ''}`,
+        { status: parsed.status, reason: parsed.rejection_reason ?? null });
       return ok({ status: parsed.status });
     });
   });

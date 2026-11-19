@@ -25,12 +25,15 @@ interface ProductData {
   isFeatured: boolean;
   features: string[];
   images: UploadedImage[];
+  /** JEMI's cut, % of the price (seller gets the rest). */
+  marginPercent: number;
 }
 
 const CATEGORIES = ['fashion', 'electronics', 'food', 'accessories'];
 
-export function ProductEditForm({ product }: { product: ProductData }) {
+export function ProductEditForm({ product, canEditMargin = false }: { product: ProductData; canEditMargin?: boolean }) {
   const router = useRouter();
+  const [margin, setMargin] = useState(String(product.marginPercent));
   const [name, setName] = useState(product.name);
   const [description, setDescription] = useState(product.description);
   const [price, setPrice] = useState(String(product.price));
@@ -62,6 +65,10 @@ export function ProductEditForm({ product }: { product: ProductData }) {
 
       if (Number.isNaN(priceNum) || priceNum < 0) throw new Error('Price must be a positive number.');
       if (Number.isNaN(stockNum) || stockNum < 0) throw new Error('Stock must be a non-negative integer.');
+      const marginNum = parseFloat(margin);
+      if (canEditMargin && (Number.isNaN(marginNum) || marginNum < 0 || marginNum > 50)) {
+        throw new Error('JEMI margin must be between 0 and 50%.');
+      }
 
       await apiFetch(`/api/admin/products/${product.id}`, {
         method: 'PATCH',
@@ -70,6 +77,7 @@ export function ProductEditForm({ product }: { product: ProductData }) {
           description,
           price: priceNum,
           originalPrice: origNum,
+          ...(canEditMargin ? { marginPercent: marginNum } : {}),
           category,
           seller,
           stockQuantity: stockNum,
@@ -164,7 +172,20 @@ export function ProductEditForm({ product }: { product: ProductData }) {
             <Input id="originalPrice" type="number" inputMode="numeric" step="0.01" min="0" value={originalPrice}
               onChange={(e) => setOriginalPrice(e.target.value)} placeholder="For showing discounts" className="mt-1.5 bg-surface" />
           </div>
-          <div className="sm:col-span-2">
+          <div>
+            <Label htmlFor="margin" className="text-fg-1">JEMI margin (%)</Label>
+            <Input id="margin" type="number" inputMode="decimal" step="0.5" min="0" max="50" value={margin}
+              onChange={(e) => setMargin(e.target.value)} disabled={!canEditMargin} className="mt-1.5 bg-surface" />
+            <p className="text-[11px] text-fg-3 mt-1">
+              {(() => {
+                const p = parseFloat(price), m = parseFloat(margin);
+                if (Number.isNaN(p) || Number.isNaN(m)) return canEditMargin ? 'JEMI keeps this %, the seller gets the rest.' : 'Only a super admin can change this.';
+                const fee = Math.round(p * m) / 100;
+                return `JEMI keeps ₦${fee.toLocaleString('en-NG')}; seller gets ₦${(p - fee).toLocaleString('en-NG')}.${canEditMargin ? '' : ' Only a super admin can change this.'}`;
+              })()}
+            </p>
+          </div>
+          <div>
             <Label htmlFor="stockQuantity" className="text-fg-1">Stock quantity</Label>
             <Input id="stockQuantity" type="number" inputMode="numeric" min="0" value={stockQuantity}
               onChange={(e) => setStockQuantity(e.target.value)} required className="mt-1.5 bg-surface" />

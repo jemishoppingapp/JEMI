@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm';
 import { ChevronLeft } from 'lucide-react';
 import { db, schema } from '@/db';
 import { ProductEditForm } from './ProductEditForm';
+import { requireAdmin } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { title: 'Edit Product', robots: { index: false } };
@@ -14,6 +15,7 @@ export default async function AdminProductEditPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const admin = await requireAdmin();
   const { id } = await params;
 
   const rows = await db().select().from(schema.products).where(eq(schema.products.id, id)).limit(1);
@@ -28,7 +30,8 @@ export default async function AdminProductEditPage({
       <h1 className="font-display text-2xl sm:text-3xl font-semibold text-fg mb-1">Edit product</h1>
       <p className="text-sm text-fg-2 mb-7 font-mono">{product.slug}</p>
 
-      <ProductEditForm product={{
+      <ProductEditForm canEditMargin={admin.is_super_admin} product={{
+        marginPercent: Number(product.marginPercent),
         id: product.id,
         name: product.name,
         slug: product.slug,

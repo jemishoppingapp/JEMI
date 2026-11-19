@@ -1,7 +1,8 @@
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { db, schema } from '@/db';
-import { requireAdmin } from '@/lib/session';
+import { requireSuperAdmin } from '@/lib/session';
+import { logAdminAction } from '@/lib/audit';
 import { initiateRefund } from '@/lib/escrow-server';
 import { ok, fail, failValidation, withErrorHandling } from '@/lib/api';
 
@@ -21,9 +22,9 @@ export async function POST(
   return withErrorHandling(async () => {
     let admin;
     try {
-      admin = await requireAdmin();
+      admin = await requireSuperAdmin(); // money/seller decisions: super admins only
     } catch {
-      return fail('FORBIDDEN', 'Admin access required.');
+      return fail('FORBIDDEN', 'Only a super admin can do that.');
     }
 
     const { orderNumber } = await params;
@@ -59,6 +60,9 @@ export async function POST(
       }).where(eq(schema.orders.id, order.id));
     }
 
+    await logAdminAction(admin, 'order.refund', { type: 'order', id: orderNumber },
+      `Refunded ${orderNumber}${parsed.override ? ' (OVERRIDE: sellers already paid)' : ''}: ${parsed.reason}`,
+      { override: parsed.override === true });
     return ok({ refunded: true });
   });
 }

@@ -11,6 +11,7 @@ import { formatCurrency } from '@/lib/utils';
 
 interface Props {
   orderNumber: string;
+  status: string;
   total: number;
   paymentMethod: string;     // 'pod' | 'paystack'
   paymentStatus: string;     // 'pay_on_delivery' | 'collected' | ...
@@ -19,16 +20,18 @@ interface Props {
 }
 
 export function AdminPodDelivery({
-  orderNumber, total, paymentMethod, paymentStatus,
+  orderNumber, status, total, paymentMethod, paymentStatus,
   podCollectedAmount, podCollectedMethod,
 }: Props) {
   const router = useRouter();
   const [amount, setAmount] = useState(String(total));
   const [method, setMethod] = useState<'cash' | 'transfer'>('cash');
+  const [code, setCode] = useState('');
   const [saving, setSaving] = useState(false);
 
   // Only render for POD orders.
   if (paymentMethod !== 'pod') return null;
+  if (status === 'cancelled') return null;
 
   // Already collected — show a summary.
   if (paymentStatus === 'collected') {
@@ -52,17 +55,24 @@ export function AdminPodDelivery({
       toast.error('Enter a valid amount collected.');
       return;
     }
+    if (code.trim().length < 4) {
+      toast.error("Type the pickup code the buyer shows you.");
+      return;
+    }
+    const diff = total - amt;
     if (!confirm(
-      `Confirm delivery of ${orderNumber}?\n\n` +
-      `Collected: ${formatCurrency(amt)} (${method})\n\n` +
-      `This completes the order and credits the seller(s) their share. Cannot be undone.`
+      `Hand over ${orderNumber}?\n\n` +
+      `Collected: ${formatCurrency(amt)} (${method})` +
+      (diff > 0 ? `\n⚠ That is ${formatCurrency(diff)} LESS than the order total.` : '') +
+      (diff < 0 ? `\n⚠ That is ${formatCurrency(-diff)} MORE than the order total.` : '') +
+      `\n\nThis completes the order and credits the seller(s). It can't be undone.`
     )) return;
 
     setSaving(true);
     try {
       const res = await apiFetch<{ sellersCredited: number }>(
         `/api/admin/orders/${orderNumber}/pod-deliver`,
-        { method: 'POST', body: { amount: amt, method } }
+        { method: 'POST', body: { amount: amt, method, pickupCode: code.trim() } }
       );
       toast.success(`Delivered. ${res.sellersCredited} seller(s) credited.`);
       router.refresh();
@@ -77,12 +87,22 @@ export function AdminPodDelivery({
     <div className="mt-6 rounded-2xl border-2 border-primary-soft bg-primary-soft/20 p-5">
       <div className="flex items-center gap-2 mb-1">
         <Truck className="h-4 w-4 text-primary-text" />
-        <h2 className="font-display text-base font-semibold text-fg">Agent delivery</h2>
+        <h2 className="font-display text-base font-semibold text-fg">Collect payment at the gate</h2>
       </div>
       <p className="text-sm text-fg-2 mb-4">
-        Pay on delivery. Collect from the buyer at the gate, then record it here to
-        complete the order and credit the seller.
+        Buyer pays <span className="font-semibold text-fg">{formatCurrency(total)}</span>.
+        Check their pickup code, take the money, then record it here.
       </p>
+      <div className="mb-3">
+        <label htmlFor="pod-code" className="text-[11px] uppercase tracking-[0.15em] text-fg-2 font-medium mb-1 block">
+          Pickup code the buyer shows
+        </label>
+        <Input
+          id="pod-code" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())}
+          placeholder="e.g. K7MX2P" autoComplete="off" autoCapitalize="characters" spellCheck={false}
+          className="font-mono tracking-[0.3em] text-lg uppercase"
+        />
+      </div>
 
       <div className="grid sm:grid-cols-2 gap-3 mb-4">
         <div>
@@ -93,7 +113,15 @@ export function AdminPodDelivery({
             type="number" inputMode="numeric" step="0.01" min="0"
             value={amount} onChange={(e) => setAmount(e.target.value)}
           />
-          <p className="text-[11px] text-fg-3 mt-1">Order total: {formatCurrency(total)}</p>
+          {(() => {
+            const a = parseFloat(amount);
+            if (Number.isNaN(a) || a === total) return <p className="text-[11px] text-fg-3 mt-1">Order total: {formatCurrency(total)}</p>;
+            return (
+              <p className="text-[11px] text-warning mt-1">
+                {a < total ? `${formatCurrency(total - a)} short of` : `${formatCurrency(a - total)} more than`} the total ({formatCurrency(total)})
+              </p>
+            );
+          })()}
         </div>
         <div>
           <label className="text-[11px] uppercase tracking-[0.15em] text-fg-2 font-medium mb-1 block">
@@ -119,9 +147,9 @@ export function AdminPodDelivery({
         </div>
       </div>
 
-      <Button type="button" variant="default" size="tap" onClick={handleDeliver} disabled={saving}>
+      <Button type="button" variant="default" size="tap" className="w-full sm:w-auto" onClick={handleDeliver} disabled={saving || code.trim().length < 4}>
         {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Banknote className="h-4 w-4" />}
-        Mark delivered &amp; collected
+        Collected, hand over items
       </Button>
     </div>
   );

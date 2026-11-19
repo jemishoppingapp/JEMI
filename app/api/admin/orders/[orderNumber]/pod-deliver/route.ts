@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { db, schema } from '@/db';
 import { requireAdmin } from '@/lib/session';
+import { logAdminAction } from '@/lib/audit';
 import { markPodCollectedAndDelivered } from '@/lib/pod-server';
 import { ok, fail, failValidation, withErrorHandling } from '@/lib/api';
 import { notifyOps } from '@/lib/notify';
@@ -14,6 +15,9 @@ const inputSchema = z.object({
   method: z.enum(['cash', 'transfer'], {
     errorMap: () => ({ message: 'Choose cash or transfer.' }),
   }),
+  // The code the BUYER shows at the gate. Must match the order, so money
+  // is never collected from (or goods handed to) the wrong person.
+  pickupCode: z.string().trim().min(4, 'Enter the pickup code the buyer shows you.').max(12),
 });
 
 export async function POST(
@@ -39,12 +43,17 @@ export async function POST(
       return fail('VALIDATION_ERROR', 'Invalid request body.');
     }
 
-    const rows = await db().select({ id: schema.orders.id })
+    const rows = await db().select({ id: schema.orders.id, subOrders: schema.orders.subOrders, total: schema.orders.total })
       .from(schema.orders)
       .where(eq(schema.orders.orderNumber, orderNumber))
       .limit(1);
     const order = rows[0];
     if (!order) return fail('NOT_FOUND', 'Order not found.');
+
+    const codes = (order.subOrders ?? []).map((so) => String(so.pickupCode || '').toUpperCase()).filter(Boolean);
+    if (!codes.includes(parsed.pickupCode.toUpperCase().replace(/\s+/g, ''))) {
+      return fail('VALIDATION_ERROR', "That pickup code doesn't match this order. Check the buyer's code again.", 'pickupCode');
+    }
 
     const result = await markPodCollectedAndDelivered(
       order.id,
@@ -62,6 +71,10 @@ export async function POST(
       });
     } catch (e) { console.error('[notify]', e); }
 
+    const short = Number(order.total) - parsed.amount;
+    await logAdminAction(admin, 'order.collect', { type: 'order', id: orderNumber },
+      `Collected NGN ${parsed.amount} (${parsed.method}) for ${orderNumber}${short > 0 ? `, SHORT by NGN ${short}` : ''}`,
+      { amount: parsed.amount, method: parsed.method, orderTotal: Number(order.total) });
     return ok({ delivered: true, sellersCredited: result.sellersCredited ?? 0 });
   });
 }

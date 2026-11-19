@@ -32,6 +32,7 @@ export default async function AdminUsersPage({
       email: schema.users.email,
       name: schema.users.name,
       role: schema.users.role,
+      isSuperAdmin: schema.users.isSuperAdmin,
       profileCompleted: schema.users.profileCompleted,
       createdAt: schema.users.createdAt,
     })
@@ -85,7 +86,7 @@ export default async function AdminUsersPage({
                       <p className="text-sm font-medium text-fg line-clamp-1">{u.name}</p>
                       {u.role === 'admin' && (
                         <span className="inline-flex items-center gap-1 text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded">
-                          <ShieldCheck className="h-2.5 w-2.5" /> Admin
+                          <ShieldCheck className="h-2.5 w-2.5" /> {u.isSuperAdmin ? 'Super admin' : 'Staff admin'}
                         </span>
                       )}
                       {!u.profileCompleted && (

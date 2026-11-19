@@ -15,6 +15,8 @@ export interface CurrentUser {
   name: string;
   phone: string;
   role: 'buyer' | 'admin' | 'seller';
+  /** Only meaningful when role === 'admin'. */
+  is_super_admin: boolean;
   profile_completed: boolean;
   email_verified: boolean;
   nickname?: string;
@@ -58,6 +60,7 @@ export const getCurrentUser = cache(async function getCurrentUser(): Promise<Cur
     name: user.name,
     phone: user.phone,
     role: user.role,
+    is_super_admin: user.role === 'admin' && user.isSuperAdmin === true,
     profile_completed: user.profileCompleted,
       email_verified: user.emailVerified,
     nickname: user.nickname,
@@ -89,6 +92,19 @@ export async function requireAdmin(): Promise<CurrentUser> {
   const user = await getCurrentUser();
   if (!user || user.role !== 'admin') {
     redirect('/admin/login');
+  }
+  return user;
+}
+
+/**
+ * Super admins only: roles, money (refunds, payouts, margins), seller
+ * approvals and the activity log. Staff admins are sent back to the
+ * dashboard (pages) or get a 403 (API routes, via withErrorHandling).
+ */
+export async function requireSuperAdmin(): Promise<CurrentUser> {
+  const user = await requireAdmin();
+  if (!user.is_super_admin) {
+    redirect('/admin?denied=1');
   }
   return user;
 }

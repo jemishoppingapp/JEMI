@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { requireAdmin } from '@/lib/session';
+import { requireSuperAdmin } from '@/lib/session';
+import { logAdminAction } from '@/lib/audit';
 import { createPayout } from '@/lib/payouts-server';
 import { ok, fail, failValidation, withErrorHandling } from '@/lib/api';
 
@@ -17,9 +18,9 @@ export async function POST(req: Request) {
   return withErrorHandling(async () => {
     let admin;
     try {
-      admin = await requireAdmin();
+      admin = await requireSuperAdmin(); // money/seller decisions: super admins only
     } catch {
-      return fail('FORBIDDEN', 'Admin access required.');
+      return fail('FORBIDDEN', 'Only a super admin can do that.');
     }
 
     let parsed: z.infer<typeof inputSchema>;
@@ -42,6 +43,9 @@ export async function POST(req: Request) {
       return fail('VALIDATION_ERROR', result.error ?? 'Payout failed.');
     }
 
+    await logAdminAction(admin, 'payout.create', { type: 'seller', id: parsed.sellerId },
+      `Recorded ${parsed.method} payout${parsed.transferRef ? ` (ref ${parsed.transferRef})` : ''}`,
+      { payoutId: result.payoutId, method: parsed.method, transferRef: parsed.transferRef ?? null });
     return ok({ payoutId: result.payoutId });
   });
 }

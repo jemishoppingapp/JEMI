@@ -71,6 +71,7 @@ async function main() {
       .update(schema.users)
       .set({
         role: 'admin',
+        isSuperAdmin: true, // the seeded owner account is a super admin
         password: hash,
         name: name.trim(),
         updatedAt: new Date(),
@@ -88,6 +89,7 @@ async function main() {
       password: hash,
       name: name.trim(),
       role: 'admin',
+      isSuperAdmin: true,
       profileCompleted: false,
     });
 

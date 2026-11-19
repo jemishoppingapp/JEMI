@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { db, schema } from '@/db';
 import { requireAdmin } from '@/lib/session';
+import { logAdminAction } from '@/lib/audit';
 import { productImageUrlSchema } from '@/lib/image-url';
 import { ok, fail, failValidation, withErrorHandling } from '@/lib/api';
 import { revalidateProductPages } from '@/lib/revalidate';
@@ -37,8 +38,9 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   return withErrorHandling(async () => {
+    let admin;
     try {
-      await requireAdmin();
+      admin = await requireAdmin();
     } catch {
       return fail('FORBIDDEN', 'Admin access required.');
     }
@@ -54,10 +56,16 @@ export async function PATCH(
       return fail('VALIDATION_ERROR', 'Invalid input.');
     }
 
-    const existing = await db().select({ id: schema.products.id })
+    const existing = await db().select({ id: schema.products.id, name: schema.products.name, marginPercent: schema.products.marginPercent })
       .from(schema.products).where(eq(schema.products.id, id)).limit(1);
     if (existing.length === 0) {
       return fail('NOT_FOUND', 'Product does not exist.');
+    }
+    // JEMI's cut is a money decision: super admins only.
+    const marginChanging =
+      parsed.marginPercent !== undefined && Number(parsed.marginPercent) !== Number(existing[0].marginPercent);
+    if (marginChanging && !admin.is_super_admin) {
+      return fail('FORBIDDEN', "Only a super admin can change JEMI's margin.");
     }
 
     const updates: Record<string, unknown> = { updatedAt: new Date() };
@@ -77,6 +85,10 @@ export async function PATCH(
 
     await db().update(schema.products).set(updates).where(eq(schema.products.id, id));
     revalidateProductPages();
+    if (marginChanging) {
+      await logAdminAction(admin, 'product.margin', { type: 'product', id },
+        `Margin on "${existing[0].name}" changed ${existing[0].marginPercent}% → ${parsed.marginPercent}%`);
+    }
     return ok({ saved: true });
   });
 }
@@ -86,15 +98,16 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   return withErrorHandling(async () => {
+    let admin;
     try {
-      await requireAdmin();
+      admin = await requireAdmin();
     } catch {
       return fail('FORBIDDEN', 'Admin access required.');
     }
 
     const { id } = await params;
 
-    const existing = await db().select({ id: schema.products.id })
+    const existing = await db().select({ id: schema.products.id, name: schema.products.name })
       .from(schema.products).where(eq(schema.products.id, id)).limit(1);
     if (existing.length === 0) {
       return fail('NOT_FOUND', 'Product does not exist.');
@@ -105,6 +118,7 @@ export async function DELETE(
       .where(eq(schema.products.id, id));
 
     revalidateProductPages();
+    await logAdminAction(admin, 'product.remove', { type: 'product', id }, `Hid product "${existing[0].name}" from the shop`);
     return ok({ deleted: true });
   });
 }

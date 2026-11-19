@@ -56,7 +56,7 @@ export default async function AdminUserDetailPage({
           <h1 className="font-display text-2xl sm:text-3xl font-semibold text-fg">{user.name}</h1>
           {user.role === 'admin' && (
             <span className="inline-flex items-center gap-1 text-[10px] font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full">
-              <ShieldCheck className="h-2.5 w-2.5" /> Admin
+              <ShieldCheck className="h-2.5 w-2.5" /> {user.isSuperAdmin ? 'Super admin' : 'Staff admin'}
             </span>
           )}
         </div>

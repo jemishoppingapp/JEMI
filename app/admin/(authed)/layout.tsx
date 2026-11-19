@@ -23,8 +23,10 @@ export default async function AdminAuthedLayout({
     const [sellersCount, ordersCount] = await Promise.all([
       db().select({ count: sql<number>`count(*)::int` })
         .from(schema.sellers).where(eq(schema.sellers.status, 'pending')),
+      // Orders that need someone: pay-on-delivery waiting at the gate, or
+      // paid online and not finished. (It used to count abandoned checkouts.)
       db().select({ count: sql<number>`count(*)::int` })
-        .from(schema.orders).where(eq(schema.orders.status, 'pending')),
+        .from(schema.orders).where(sql`${schema.orders.status} IN ('confirmed', 'processing', 'ready_for_pickup')`),
     ]);
     pendingSellersCount = sellersCount[0]?.count ?? 0;
     pendingOrdersCount = ordersCount[0]?.count ?? 0;
@@ -37,6 +39,7 @@ export default async function AdminAuthedLayout({
       <AdminSidebar
         adminName={user.name}
         adminEmail={user.email}
+        isSuperAdmin={user.is_super_admin}
         pendingSellersCount={pendingSellersCount}
         pendingOrdersCount={pendingOrdersCount}
       />

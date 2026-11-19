@@ -2,10 +2,11 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { eq } from 'drizzle-orm';
-import { ChevronLeft, MapPin, User, Check, Clock } from 'lucide-react';
+import { ChevronLeft, MapPin, User, Check, Clock, Phone, MessageCircle } from 'lucide-react';
 import { db, schema } from '@/db';
 import { formatCurrency, cn } from '@/lib/utils';
 import { DELIVERY_ZONES } from '@/lib/checkout';
+import { requireAdmin } from '@/lib/session';
 import { AdminOrderStatusActions } from './AdminOrderStatusActions';
 import { AdminRefundButton } from './AdminRefundButton';
 import { AdminPodDelivery } from './AdminPodDelivery';
@@ -31,6 +32,7 @@ export default async function AdminOrderDetailPage({
 }: {
   params: Promise<{ orderNumber: string }>;
 }) {
+  const admin = await requireAdmin();
   const { orderNumber } = await params;
 
   const rows = await db()
@@ -52,6 +54,20 @@ export default async function AdminOrderDetailPage({
   const deliveryFee = Number(order.deliveryFee);
   const total = Number(order.total);
   const isPaid = order.paymentStatus === 'paid';
+  const PAYMENT_LABEL: Record<string, string> = {
+    pay_on_delivery: `Pay ${formatCurrency(total)} at the gate`,
+    collected: 'Collected at the gate',
+    paid: 'Paid online',
+    pending: 'Awaiting payment',
+    failed: 'Payment failed / expired',
+    refunded: 'Refunded',
+  };
+  // "0803..." -> "2348..." for WhatsApp links
+  const waNumber = (n?: string | null) => {
+    const d = (n || '').replace(/\D/g, '');
+    if (!d) return '';
+    return d.startsWith('234') ? d : d.startsWith('0') ? '234' + d.slice(1) : d;
+  };
 
   return (
     <div className="px-4 sm:px-6 lg:px-10 py-6 lg:py-10 max-w-5xl">
@@ -81,33 +97,43 @@ export default async function AdminOrderDetailPage({
         </div>
       </div>
 
+      {/* Pickup code. While a pay-on-delivery order is waiting at the gate
+          the code is NOT shown here: the rep must get it from the buyer and
+          type it into "Collect payment", which is the real identity check. */}
+      {order.paymentMethod === 'pod' && order.paymentStatus === 'pay_on_delivery' && order.status !== 'cancelled' && (
+        <div className="mb-6 rounded-2xl border border-border-soft bg-surface p-4 text-sm text-fg-2">
+          Ask the buyer for their <span className="font-medium text-fg">pickup code</span> and type it under
+          Collect payment. It is hidden here on purpose, so it can only come from the buyer.
+        </div>
+      )}
+      {(isPaid || order.paymentMethod === 'pod') && !(order.paymentMethod === 'pod' && order.paymentStatus === 'pay_on_delivery') && order.subOrders.length > 0 && order.subOrders[0].pickupCode && (
+        <div className="mb-6 rounded-2xl border-2 border-primary-soft bg-primary-soft/30 p-6 text-center">
+          <p className="text-[11px] uppercase tracking-[0.2em] text-fg-2 mb-2 font-medium">Pickup code</p>
+          <div className="font-mono font-bold tracking-[0.3em] text-primary text-3xl sm:text-4xl mb-2 leading-none">
+            {order.subOrders[0].pickupCode}
+          </div>
+          <p className="text-xs text-fg-2">{order.paymentStatus === 'collected' ? 'Collected with this code.' : 'Verify this matches what the buyer shows at pickup.'}</p>
+        </div>
+      )}
+
       {/* Status update actions */}
       <AdminOrderStatusActions
         orderNumber={order.orderNumber}
         status={order.status}
         paymentStatus={order.paymentStatus}
+        paymentMethod={order.paymentMethod}
       />
 
       {/* POD: agent delivery + collection */}
       <AdminPodDelivery
         orderNumber={order.orderNumber}
+        status={order.status}
         total={total}
         paymentMethod={order.paymentMethod}
         paymentStatus={order.paymentStatus}
         podCollectedAmount={order.podCollectedAmount != null ? Number(order.podCollectedAmount) : null}
         podCollectedMethod={order.podCollectedMethod}
       />
-
-      {/* Pickup code */}
-      {(isPaid || order.paymentMethod === 'pod') && order.subOrders.length > 0 && order.subOrders[0].pickupCode && (
-        <div className="mt-6 rounded-2xl border-2 border-primary-soft bg-primary-soft/30 p-6 text-center">
-          <p className="text-[11px] uppercase tracking-[0.2em] text-fg-2 mb-2 font-medium">Pickup code</p>
-          <div className="font-mono font-bold tracking-[0.3em] text-primary text-3xl sm:text-4xl mb-2 leading-none">
-            {order.subOrders[0].pickupCode}
-          </div>
-          <p className="text-xs text-fg-2">Verify this matches what the buyer shows at pickup.</p>
-        </div>
-      )}
 
       {/* Buyer details */}
       {user && (
@@ -118,7 +144,22 @@ export default async function AdminOrderDetailPage({
           <dl className="grid sm:grid-cols-2 gap-3 text-sm">
             <div><dt className="text-fg-2 text-xs mb-0.5">Name</dt><dd className="text-fg">{user.name}</dd></div>
             <div><dt className="text-fg-2 text-xs mb-0.5">Email</dt><dd className="text-fg">{user.email}</dd></div>
-            <div><dt className="text-fg-2 text-xs mb-0.5">Phone</dt><dd className="text-fg">{user.phone || '—'}</dd></div>
+            <div>
+              <dt className="text-fg-2 text-xs mb-0.5">Phone</dt>
+              <dd className="text-fg">
+                {user.phone ? (
+                  <span className="inline-flex flex-wrap items-center gap-2">
+                    <span>{user.phone}</span>
+                    <a href={`tel:${user.phone}`} className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 h-7 text-xs text-fg-1 hover:bg-surface-1">
+                      <Phone className="h-3 w-3" /> Call
+                    </a>
+                    <a href={`https://wa.me/${waNumber(user.phone)}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 h-7 text-xs text-fg-1 hover:bg-surface-1">
+                      <MessageCircle className="h-3 w-3" /> WhatsApp
+                    </a>
+                  </span>
+                ) : '—'}
+              </dd>
+            </div>
             {user.altPhone && (<div><dt className="text-fg-2 text-xs mb-0.5">Alt phone</dt><dd className="text-fg">{user.altPhone}</dd></div>)}
             <div className="sm:col-span-2"><dt className="text-fg-2 text-xs mb-0.5">Address</dt><dd className="text-fg">{user.address || '—'}</dd></div>
             <div><dt className="text-fg-2 text-xs mb-0.5">Department</dt><dd className="text-fg">{user.department || '—'}</dd></div>
@@ -178,13 +219,13 @@ export default async function AdminOrderDetailPage({
             </div>
           </dl>
           <div className="mt-3 pt-3 border-t border-border-soft text-xs text-fg-2">
-            Payment status:{' '}
+            Payment:{' '}
             <span className={cn(
               'font-medium',
-              order.paymentStatus === 'paid' ? 'text-success' :
+              order.paymentStatus === 'paid' || order.paymentStatus === 'collected' ? 'text-success' :
               order.paymentStatus === 'failed' ? 'text-danger' : 'text-warning'
             )}>
-              {order.paymentStatus}
+              {PAYMENT_LABEL[order.paymentStatus] ?? order.paymentStatus}
             </span>
           </div>
         </section>
@@ -216,6 +257,8 @@ export default async function AdminOrderDetailPage({
         </section>
       )}
     
+      {/* Refunds move money: super admins only. */}
+      {admin.is_super_admin && (
       <div className="mt-6">
         <AdminRefundButton
           orderNumber={order.orderNumber}
@@ -224,6 +267,7 @@ export default async function AdminOrderDetailPage({
           sellersAlreadyPaid={order.escrowStatus === 'released'}
         />
       </div>
+      )}
 </div>
   );
 }

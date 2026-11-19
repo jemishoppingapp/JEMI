@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import {
   LayoutDashboard, Package, ShoppingBag, Users, Briefcase,
-  LogOut, Menu, X, UserCog, Banknote,
+  LogOut, Menu, X, UserCog, Banknote, History, ExternalLink,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -14,27 +14,33 @@ import { apiFetch } from '@/lib/api-client';
 interface AdminSidebarProps {
   adminName: string;
   adminEmail: string;
+  /** Super admins see money + roles pages; staff don't. */
+  isSuperAdmin?: boolean;
   pendingSellersCount?: number;
   pendingOrdersCount?: number;
 }
 
 export function AdminSidebar({
-  adminName, adminEmail,
+  adminName, adminEmail, isSuperAdmin = false,
   pendingSellersCount = 0, pendingOrdersCount = 0,
 }: AdminSidebarProps) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
 
-  const NAV = [
-    { href: '/admin', label: 'Dashboard', icon: LayoutDashboard, match: (p: string) => p === '/admin', badge: 0 },
-    { href: '/admin/orders', label: 'Orders', icon: ShoppingBag, match: (p: string) => p.startsWith('/admin/orders'), badge: pendingOrdersCount },
-    { href: '/admin/sellers', label: 'Sellers', icon: Briefcase, match: (p: string) => p.startsWith('/admin/sellers'), badge: pendingSellersCount },
-    { href: '/admin/payouts', label: 'Payouts', icon: Banknote, match: (p: string) => p.startsWith('/admin/payouts'), badge: 0 },
-    { href: '/admin/products', label: 'Products', icon: Package, match: (p: string) => p.startsWith('/admin/products'), badge: 0 },
-    { href: '/admin/users', label: 'Users', icon: Users, match: (p: string) => p.startsWith('/admin/users'), badge: 0 },
-    { href: '/admin/profile', label: 'My Profile', icon: UserCog, match: (p: string) => p.startsWith('/admin/profile'), badge: 0 },
+  const ALL_NAV = [
+    { href: '/admin', label: 'Dashboard', icon: LayoutDashboard, match: (p: string) => p === '/admin', badge: 0, superOnly: false },
+    { href: '/admin/orders', label: 'Orders', icon: ShoppingBag, match: (p: string) => p.startsWith('/admin/orders'), badge: pendingOrdersCount, superOnly: false },
+    { href: '/admin/sellers', label: 'Sellers', icon: Briefcase, match: (p: string) => p.startsWith('/admin/sellers'), badge: pendingSellersCount, superOnly: false },
+    { href: '/admin/payouts', label: 'Payouts', icon: Banknote, match: (p: string) => p.startsWith('/admin/payouts'), badge: 0, superOnly: true },
+    { href: '/admin/products', label: 'Products', icon: Package, match: (p: string) => p.startsWith('/admin/products'), badge: 0, superOnly: false },
+    { href: '/admin/users', label: 'Users', icon: Users, match: (p: string) => p.startsWith('/admin/users'), badge: 0, superOnly: false },
+    { href: '/admin/activity', label: 'Activity log', icon: History, match: (p: string) => p.startsWith('/admin/activity'), badge: 0, superOnly: true },
+    { href: '/admin/profile', label: 'My Profile', icon: UserCog, match: (p: string) => p.startsWith('/admin/profile'), badge: 0, superOnly: false },
   ];
+  const NAV = ALL_NAV.filter((n) => isSuperAdmin || !n.superOnly);
+  const levelLabel = isSuperAdmin ? 'Super admin' : 'Staff admin';
+
 
   async function handleSignOut() {
     setSigningOut(true);
@@ -90,7 +96,13 @@ export function AdminSidebar({
               <div className="px-3 py-2">
                 <p className="text-xs font-medium text-fg truncate">{adminName}</p>
                 <p className="text-[11px] text-fg-2 truncate">{adminEmail}</p>
+                <p className="text-[10px] uppercase tracking-[0.15em] text-primary-text mt-1">{levelLabel}</p>
               </div>
+              <a href="/" target="_blank" rel="noopener noreferrer"
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-fg-1 hover:bg-surface-1">
+                <ExternalLink className="h-4 w-4 shrink-0" />
+                View shop
+              </a>
               <button type="button" onClick={handleSignOut} disabled={signingOut}
                 className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-fg-1 hover:bg-surface-1">
                 <LogOut className="h-4 w-4 shrink-0" />
@@ -117,7 +129,13 @@ export function AdminSidebar({
           <div className="px-3 py-2 mb-1">
             <p className="text-xs font-medium text-fg truncate">{adminName}</p>
             <p className="text-[11px] text-fg-2 truncate">{adminEmail}</p>
+            <p className="text-[10px] uppercase tracking-[0.15em] text-primary-text mt-1">{levelLabel}</p>
           </div>
+          <a href="/" target="_blank" rel="noopener noreferrer"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-fg-1 hover:bg-surface-1">
+            <ExternalLink className="h-4 w-4 shrink-0" />
+            View shop
+          </a>
           <button type="button" onClick={handleSignOut} disabled={signingOut}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-fg-1 hover:bg-surface-1 transition-colors">
             <LogOut className="h-4 w-4 shrink-0" />

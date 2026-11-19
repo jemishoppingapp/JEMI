@@ -30,22 +30,28 @@ const TRANSITIONS: Record<string, Array<{ to: string; label: string; variant: 'p
   ],
   ready_for_pickup: [
     { to: 'completed', label: 'Mark completed', variant: 'primary' },
+    { to: 'cancelled', label: "Cancel (buyer didn't come)", variant: 'danger' },
   ],
   completed: [],
   cancelled: [],
 };
 
 export function AdminOrderStatusActions({
-  orderNumber, status, paymentStatus,
+  orderNumber, status, paymentStatus, paymentMethod,
 }: {
-  orderNumber: string; status: string; paymentStatus: string;
+  orderNumber: string; status: string; paymentStatus: string; paymentMethod: string;
 }) {
   const router = useRouter();
   const [updating, setUpdating] = useState<string | null>(null);
 
-  const transitions = TRANSITIONS[status] ?? [];
+  const isPodUncollected = paymentMethod === 'pod' && paymentStatus !== 'collected';
+  // Pay-on-delivery orders are completed by "Collect payment" below,
+  // which records the money and pays the seller(s).
+  const transitions = (TRANSITIONS[status] ?? []).filter(
+    (t) => !(t.to === 'completed' && isPodUncollected)
+  );
 
-  if (transitions.length === 0) {
+  if (transitions.length === 0 && (status === 'completed' || status === 'cancelled')) {
     return (
       <div className="bg-surface border border-border-soft rounded-2xl p-5 text-sm text-fg-2">
         This order is{' '}
@@ -55,12 +61,19 @@ export function AdminOrderStatusActions({
   }
 
   async function handleTransition(to: string, label: string) {
-    if (!confirm(`Confirm: ${label}?`)) return;
+    let note: string | undefined;
+    if (to === 'cancelled') {
+      const reason = window.prompt(`Cancel ${orderNumber}?\n\nReason (the buyer gets it by email). Leave empty for none:`, '');
+      if (reason === null) return; // pressed Cancel
+      note = reason.trim() || undefined;
+    } else if (!confirm(`Confirm: ${label}?`)) {
+      return;
+    }
     setUpdating(to);
     try {
       await apiFetch(`/api/admin/orders/${orderNumber}/status`, {
         method: 'POST',
-        body: { status: to },
+        body: { status: to, ...(note ? { note } : {}) },
       });
       toast.success(`Order ${label.toLowerCase()}`);
       router.refresh();
@@ -74,11 +87,15 @@ export function AdminOrderStatusActions({
   return (
     <div className="bg-surface border border-border-soft rounded-2xl p-5">
       <p className="text-[11px] uppercase tracking-[0.18em] text-fg-2 font-medium mb-3">Update status</p>
-      {paymentStatus !== 'paid' && status !== 'pending' && (
+      {isPodUncollected ? (
+        <p className="text-xs text-fg-2 mb-3">
+          Pay on delivery: when the buyer pays at the gate, use <span className="font-medium text-fg">Collect payment</span> to complete the order.
+        </p>
+      ) : paymentStatus !== 'paid' && paymentStatus !== 'collected' && status !== 'pending' ? (
         <p className="text-xs text-warning mb-3">
           Note: payment is not confirmed yet. Be careful with status changes.
         </p>
-      )}
+      ) : null}
       <div className="flex flex-wrap gap-2">
         {transitions.map((t) => (
           <button

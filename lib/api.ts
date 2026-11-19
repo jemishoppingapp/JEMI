@@ -124,6 +124,9 @@ export async function withErrorHandling<T>(
       if (digest.includes('/login')) {
         return fail('UNAUTHORIZED', 'Please sign in to continue.');
       }
+      if (digest.includes('/admin?denied')) {
+        return fail('FORBIDDEN', 'Only a super admin can do that.');
+      }
       if (digest.includes('/sellers/pending')) {
         return fail('FORBIDDEN', 'Your seller account is not active yet.');
       }

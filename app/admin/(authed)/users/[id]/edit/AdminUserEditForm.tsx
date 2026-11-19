@@ -21,12 +21,17 @@ interface UserData {
   level: string;
   role: 'buyer' | 'admin' | 'seller';
   isDisabled: boolean;
+  isSuperAdmin: boolean;
   profileCompleted: boolean;
 }
 
 const LEVELS = ['', '100 Level', '200 Level', '300 Level', '400 Level', '500 Level', 'Postgraduate', 'Staff', 'Non-student'];
 
-export function AdminUserEditForm({ user, isSelf }: { user: UserData; isSelf: boolean }) {
+export function AdminUserEditForm({
+  user, isSelf, viewerIsSuper,
+}: { user: UserData; isSelf: boolean; viewerIsSuper: boolean }) {
+  // Staff admins can't touch other admins' passwords, roles or access.
+  const canManageThisUser = viewerIsSuper || user.role !== 'admin';
   const router = useRouter();
   const [name, setName] = useState(user.name);
   const [phone, setPhone] = useState(user.phone);
@@ -87,20 +92,19 @@ export function AdminUserEditForm({ user, isSelf }: { user: UserData; isSelf: bo
     }
   }
 
-  async function promoteToAdmin() {
-    if (!confirm(`Promote ${user.email} to admin? They'll have full access to the admin panel.`)) {
-      return;
-    }
+  async function changeAccess(
+    body: { kind: 'role'; role: 'buyer' | 'admin' } | { kind: 'admin_level'; is_super_admin: boolean },
+    question: string,
+    done: string,
+  ) {
+    if (!confirm(question)) return;
     setPromoting(true);
     try {
-      await apiFetch(`/api/admin/users/${user.id}`, {
-        method: 'PATCH',
-        body: { kind: 'role', role: 'admin' },
-      });
-      toast.success(`${user.email} is now an admin`);
+      await apiFetch(`/api/admin/users/${user.id}`, { method: 'PATCH', body });
+      toast.success(done);
       router.refresh();
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Promotion failed');
+      toast.error(err instanceof ApiError ? err.message : 'Update failed');
     } finally {
       setPromoting(false);
     }
@@ -181,6 +185,8 @@ export function AdminUserEditForm({ user, isSelf }: { user: UserData; isSelf: bo
         </div>
       </form>
 
+      {/* Own password: My Profile. Other admins' passwords: super admins only. */}
+      {!isSelf && canManageThisUser && (
       <form onSubmit={resetPassword} className="bg-surface border border-border-soft rounded-2xl p-6">
         <h2 className="font-display text-base font-semibold text-fg mb-2">Reset password</h2>
         <p className="text-sm text-fg-2 mb-5">
@@ -198,21 +204,56 @@ export function AdminUserEditForm({ user, isSelf }: { user: UserData; isSelf: bo
           </Button>
         </div>
       </form>
+      )}
 
-      {!isSelf && user.role === 'buyer' && (
+      {/* Role & admin level: super admins only */}
+      {!isSelf && user.role !== 'seller' && (
         <div className="bg-surface border border-border-soft rounded-2xl p-6">
           <h2 className="font-display text-base font-semibold text-fg mb-2">Role</h2>
           <p className="text-sm text-fg-2 mb-5">
-            Currently a <span className="font-medium text-fg">buyer</span>.
-            Promoting to admin grants full access to /admin.
+            {user.role === 'buyer' && <>Currently a <span className="font-medium text-fg">buyer</span>.</>}
+            {user.role === 'admin' && (
+              <>Currently a <span className="font-medium text-fg inline-flex items-center gap-1"><ShieldCheck className="h-3 w-3" />{user.isSuperAdmin ? 'super admin' : 'staff admin'}</span>.</>
+            )}
           </p>
-          <Button type="button" variant="outline" size="tap" onClick={promoteToAdmin} disabled={promoting}>
-            <ShieldCheck className="h-4 w-4" />
-            {promoting ? 'Promoting…' : 'Promote to admin'}
-          </Button>
-          <p className="text-[11px] text-fg-3 mt-3">
-            Demoting an admin back to buyer must be done via the database directly (intentional safeguard).
-          </p>
+          {viewerIsSuper ? (
+            <div className="flex flex-wrap gap-2">
+              {user.role === 'buyer' && (
+                <Button type="button" variant="outline" size="tap" disabled={promoting}
+                  onClick={() => changeAccess({ kind: 'role', role: 'admin' },
+                    `Make ${user.email} a STAFF admin?\n\nThey can manage orders, gate collection, products and users' profiles. They can't touch money, roles or sellers.`,
+                    `${user.email} is now a staff admin`)}>
+                  <ShieldCheck className="h-4 w-4" /> Make staff admin
+                </Button>
+              )}
+              {user.role === 'admin' && !user.isSuperAdmin && (
+                <Button type="button" variant="outline" size="tap" disabled={promoting}
+                  onClick={() => changeAccess({ kind: 'admin_level', is_super_admin: true },
+                    `Make ${user.email} a SUPER admin?\n\nThey get full control: refunds, payouts, margins, roles and sellers.`,
+                    `${user.email} is now a super admin`)}>
+                  <ShieldCheck className="h-4 w-4" /> Make super admin
+                </Button>
+              )}
+              {user.role === 'admin' && user.isSuperAdmin && (
+                <Button type="button" variant="outline" size="tap" disabled={promoting}
+                  onClick={() => changeAccess({ kind: 'admin_level', is_super_admin: false },
+                    `Change ${user.email} to STAFF admin? They lose access to money, roles and sellers.`,
+                    `${user.email} is now a staff admin`)}>
+                  Change to staff admin
+                </Button>
+              )}
+              {user.role === 'admin' && (
+                <Button type="button" variant="outline" size="tap" disabled={promoting} className="text-danger hover:bg-danger/5"
+                  onClick={() => changeAccess({ kind: 'role', role: 'buyer' },
+                    `Remove admin access from ${user.email}? They become a normal buyer and are signed out of the admin panel.`,
+                    `${user.email} is no longer an admin`)}>
+                  Remove admin access
+                </Button>
+              )}
+            </div>
+          ) : (
+            <p className="text-[11px] text-fg-3">Only a super admin can change roles.</p>
+          )}
         </div>
       )}
 
@@ -221,7 +262,7 @@ export function AdminUserEditForm({ user, isSelf }: { user: UserData; isSelf: bo
           <h2 className="font-display text-base font-semibold text-fg mb-2">Role</h2>
           <p className="text-sm text-fg-2">
             This user is a <span className="font-medium text-fg">seller</span>.
-            Manage their seller status via <a href={`/admin/sellers`} className="text-primary hover:underline">/admin/sellers</a> instead.
+            Manage their shop under <a href={`/admin/sellers`} className="text-primary hover:underline">Sellers</a>.
           </p>
         </div>
       )}
@@ -230,12 +271,12 @@ export function AdminUserEditForm({ user, isSelf }: { user: UserData; isSelf: bo
         <div className="bg-surface border border-border-soft rounded-2xl p-6">
           <h2 className="font-display text-base font-semibold text-fg mb-2">Role</h2>
           <p className="text-sm text-fg-2">
-            You are an <span className="font-medium text-fg inline-flex items-center gap-1"><ShieldCheck className="h-3 w-3" /> admin</span>.
+            You are a <span className="font-medium text-fg inline-flex items-center gap-1"><ShieldCheck className="h-3 w-3" /> {user.isSuperAdmin ? 'super admin' : 'staff admin'}</span>.
           </p>
         </div>
       )}
 
-      {!isSelf && (
+      {!isSelf && canManageThisUser && (
         <div className={cn(
           'border rounded-2xl p-6',
           user.isDisabled ? 'bg-surface border-border-soft' : 'bg-surface border-border-soft'

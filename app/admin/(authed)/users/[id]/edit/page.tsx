@@ -43,9 +43,11 @@ export default async function AdminUserEditPage({ params }: { params: Promise<{ 
           level: user.level,
           role: user.role,
           isDisabled: user.isDisabled,
+          isSuperAdmin: user.role === 'admin' && user.isSuperAdmin,
           profileCompleted: user.profileCompleted,
         }}
         isSelf={isSelf}
+        viewerIsSuper={admin.is_super_admin}
       />
     </div>
   );

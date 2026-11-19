@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { and, desc, eq, gte, inArray, lte, sql } from 'drizzle-orm';
 import {
-  ShoppingBag, DollarSign, Clock, AlertTriangle, ArrowRight,
+  ShoppingBag, Banknote, Clock, AlertTriangle, ArrowRight,
 } from 'lucide-react';
 import { db, schema } from '@/db';
 import { formatCurrency, cn, startOfTodayLagos } from '@/lib/utils';
@@ -22,7 +22,11 @@ async function getStats() {
       db()
         .select({ count: sql<number>`count(*)::int` })
         .from(schema.orders)
-        .where(gte(schema.orders.createdAt, today)),
+        // Real orders only: not abandoned online checkouts.
+        .where(and(
+          gte(schema.orders.createdAt, today),
+          inArray(schema.orders.paymentStatus, ['paid', 'pay_on_delivery', 'collected'])
+        )),
       db()
         .select({ total: sql<string>`coalesce(sum(total), 0)::text` })
         .from(schema.orders)
@@ -31,10 +35,15 @@ async function getStats() {
           // Money actually received: online-paid or collected at the gate.
           inArray(schema.orders.paymentStatus, ['paid', 'collected'])
         )),
+      // Waiting at the gate: pay-on-delivery orders not yet collected,
+      // and the cash the rep should expect.
       db()
-        .select({ count: sql<number>`count(*)::int` })
+        .select({
+          count: sql<number>`count(*)::int`,
+          cash: sql<string>`coalesce(sum(total), 0)::text`,
+        })
         .from(schema.orders)
-        .where(eq(schema.orders.status, 'pending')),
+        .where(sql`${schema.orders.paymentStatus} = 'pay_on_delivery' AND ${schema.orders.status} <> 'cancelled'`),
       db()
         .select({ count: sql<number>`count(*)::int` })
         .from(schema.products)
@@ -67,6 +76,7 @@ async function getStats() {
       ordersToday: ordersTodayRows[0]?.count ?? 0,
       revenueToday: Number(revenueTodayRows[0]?.total ?? '0'),
       pendingCount: pendingCountRows[0]?.count ?? 0,
+      cashToCollect: Number(pendingCountRows[0]?.cash ?? '0'),
       lowStockCount: lowStockRows[0]?.count ?? 0,
       recentOrders: recentOrdersRows,
       lowStockProducts: lowStockListRows,
@@ -75,7 +85,7 @@ async function getStats() {
     // eslint-disable-next-line no-console
     console.error('[admin/dashboard] stats failed:', err);
     return {
-      ordersToday: 0, revenueToday: 0, pendingCount: 0, lowStockCount: 0,
+      ordersToday: 0, revenueToday: 0, pendingCount: 0, cashToCollect: 0, lowStockCount: 0,
       recentOrders: [], lowStockProducts: [],
     };
   }
@@ -94,13 +104,25 @@ const STATUS_COLOR = {
   cancelled: 'text-danger bg-danger/10',
 };
 
-export default async function AdminDashboardPage() {
+export default async function AdminDashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ denied?: string }>;
+}) {
+  const sp = await searchParams;
   const stats = await getStats();
 
   return (
     <div className="px-4 sm:px-6 lg:px-10 py-6 lg:py-10">
       <h1 className="font-display text-2xl sm:text-3xl font-semibold text-fg mb-1">Dashboard</h1>
       <p className="text-sm text-fg-2 mb-7">Today's activity at a glance.</p>
+
+      {sp.denied && (
+        <div className="mb-6 rounded-xl border border-warning/30 bg-warning/10 p-4 text-sm text-fg-1">
+          That page is for <span className="font-semibold">super admins</span> only (money, roles and sellers).
+          Ask a super admin if you need it.
+        </div>
+      )}
 
       {/* Stat cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-8">
@@ -110,16 +132,18 @@ export default async function AdminDashboardPage() {
           value={stats.ordersToday.toString()}
         />
         <StatCard
-          icon={DollarSign}
-          label="Revenue today"
+          icon={Banknote}
+          label="Collected today"
           value={formatCurrency(stats.revenueToday)}
         />
-        <StatCard
-          icon={Clock}
-          label="Pending"
-          value={stats.pendingCount.toString()}
-          warning={stats.pendingCount > 0}
-        />
+        <Link href="/admin/orders?status=to_collect" className="block rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+          <StatCard
+            icon={Clock}
+            label={`To collect · ${formatCurrency(stats.cashToCollect)}`}
+            value={stats.pendingCount.toString()}
+            warning={stats.pendingCount > 0}
+          />
+        </Link>
         <StatCard
           icon={AlertTriangle}
           label="Low stock"
