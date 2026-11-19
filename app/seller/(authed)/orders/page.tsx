@@ -96,7 +96,7 @@ export default async function SellerOrdersPage({
         )::int AS "sellerItemCount"
       FROM orders o
       LEFT JOIN users u ON u.id = o.user_id
-      WHERE o.payment_status = 'paid'
+      WHERE o.payment_status IN ('paid', 'pay_on_delivery', 'collected')
         ${statusClause}
         AND EXISTS (
           SELECT 1
@@ -122,7 +122,7 @@ export default async function SellerOrdersPage({
 
     const totalRows = await db().execute(sql`
       SELECT COUNT(DISTINCT o.id)::int AS n FROM orders o
-      WHERE o.payment_status = 'paid'
+      WHERE o.payment_status IN ('paid', 'pay_on_delivery', 'collected')
         ${statusClause}
         AND EXISTS (
           SELECT 1

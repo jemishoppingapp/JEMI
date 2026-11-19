@@ -10,6 +10,8 @@ export const runtime = 'nodejs';
 
 const inputSchema = z.object({
   reason: z.string().trim().min(5, 'Please provide a reason (at least 5 characters).').max(500),
+  /** V12: refund even though sellers were already credited. */
+  override: z.boolean().optional(),
 });
 
 export async function POST(
@@ -39,7 +41,12 @@ export async function POST(
     const order = rows[0];
     if (!order) return fail('NOT_FOUND', 'Order not found.');
 
-    const result = await initiateRefund(order.id, parsed.reason, admin.id);
+    const result = await initiateRefund(
+      order.id,
+      parsed.override ? `[OVERRIDE by ${admin.email}] ${parsed.reason}` : parsed.reason,
+      admin.id,
+      { allowAfterRelease: parsed.override === true },
+    );
     if (!result.ok) {
       return fail('VALIDATION_ERROR', result.error ?? 'Refund failed.');
     }

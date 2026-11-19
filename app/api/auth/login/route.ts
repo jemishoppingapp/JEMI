@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+import { limitByIp } from '@/lib/rate-limit';
 import { eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { db, schema } from '@/db';
@@ -15,6 +16,9 @@ const LOCK_MINUTES = 15;
 
 export async function POST(req: Request) {
   return withErrorHandling(async () => {
+    // SECURITY (V9): per-IP rate limit (20 per 10 min)
+    const limited = await limitByIp(req, 'login', 20, 600);
+    if (limited) return limited;
     let parsed: z.infer<typeof loginSchema>;
     try {
       const body = await req.json();
@@ -47,7 +51,10 @@ export async function POST(req: Request) {
     }
 
     // Timing-safe: run bcrypt even when user doesn't exist
-    const PASSWORD_DUMMY = '$2a$12$abcdefghijklmnopqrstuv';
+    // SECURITY (V15): a REAL bcrypt hash (cost 12), so an unknown email
+    // takes as long as a wrong password. The old 29-char string was not a
+    // valid hash and returned instantly, revealing which emails exist.
+    const PASSWORD_DUMMY = '$2a$12$QZ1OVTrXK59dRMTa.Oq0m.AikiotIExh.IUQ9Q9G7TwHUCFO0kXKy';
     const passwordOk = user
       ? await bcrypt.compare(parsed.password, user.password)
       : (await bcrypt.compare(parsed.password, PASSWORD_DUMMY).catch(() => false), false);
@@ -87,7 +94,7 @@ export async function POST(req: Request) {
       `);
     }
 
-    const token = await signToken({ sub: user.id, email: user.email, role: user.role });
+    const token = await signToken({ sub: user.id, email: user.email, role: user.role, tv: user.tokenVersion });
     await setAuthCookie(token);
 
     return ok({

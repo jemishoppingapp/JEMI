@@ -13,11 +13,10 @@
  * @neondatabase/serverless). Drizzle's tx callback wraps this correctly.
  */
 import { drizzle } from 'drizzle-orm/neon-http';
-import { neon, neonConfig } from '@neondatabase/serverless';
+import { neon } from '@neondatabase/serverless';
 import * as schema from './schema';
 
-// Required for the HTTP driver to function in Node 18+ envs.
-neonConfig.fetchConnectionCache = true;
+// (neonConfig.fetchConnectionCache removed: deprecated, always on now.)
 
 // Lazy resolve so a missing DATABASE_URL doesn't crash module-load
 // (Next.js evaluates this during `next build`). Same pattern as

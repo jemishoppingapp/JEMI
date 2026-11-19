@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, sql, type SQL } from 'drizzle-orm';
 import { db, schema } from '@/db';
+import { productPublicColumns } from '@/lib/product-queries';
 import { ok, withErrorHandling } from '@/lib/api';
 
 export const dynamic = 'force-dynamic';
@@ -45,7 +46,7 @@ export async function GET(req: Request) {
     const skip = (page - 1) * PAGE_SIZE;
 
     const [productsRows, totalRows] = await Promise.all([
-      db().select().from(schema.products).where(where).orderBy(...orderBy).limit(PAGE_SIZE).offset(skip),
+      db().select(productPublicColumns).from(schema.products).where(where).orderBy(...orderBy).limit(PAGE_SIZE).offset(skip),
       db().select({ count: sql<number>`count(*)::int` }).from(schema.products).where(where),
     ]);
 

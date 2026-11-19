@@ -25,7 +25,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ received: false, reason: 'signature' }, { status: 401 });
   }
 
-  let event: { event?: string; data?: { reference?: string; status?: string } };
+  let event: { event?: string; data?: { reference?: string; status?: string; amount?: number; currency?: string } };
   try {
     event = JSON.parse(rawBody);
   } catch {
@@ -37,7 +37,13 @@ export async function POST(req: Request) {
   }
 
   try {
-    const { order, alreadyPaid } = await markOrderPaid(event.data.reference);
+    const { order, alreadyPaid, amountMismatch } = await markOrderPaid(event.data.reference, {
+      amountKobo: Number(event.data.amount ?? 0),
+      currency: String(event.data.currency ?? ''),
+    });
+    if (amountMismatch) {
+      return NextResponse.json({ received: true, flagged: 'amount_mismatch' });
+    }
     // Escrow holds must exist even when the buyer never hits the verify page.
     if (order) {
       try { await createHoldEntriesForOrder(order.id); } catch (e) { console.error('[webhook escrow-hold]', e); }

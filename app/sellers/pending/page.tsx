@@ -63,6 +63,17 @@ export default async function SellerPendingPage() {
                 Your application for <span className="font-medium text-fg">{sellerRow.businessName}</span> is being reviewed.
                 We typically respond within 48 hours.
               </p>
+              {!user.email_verified && (
+                <div className="mb-4 rounded-2xl border border-warning/40 bg-warning/10 p-5 text-left">
+                  <p className="text-sm font-medium text-fg mb-1">Verify your email first</p>
+                  <p className="text-xs text-fg-2 leading-relaxed mb-3">
+                    We sent a 6-digit code to <span className="font-mono text-fg">{user.email}</span>. We can only approve your shop once it&apos;s verified.
+                  </p>
+                  <Link href="/verify-email?from=/sellers/pending" className="inline-flex h-10 items-center rounded-lg bg-primary px-4 text-sm font-semibold text-white hover:opacity-90">
+                    Enter code
+                  </Link>
+                </div>
+              )}
               <div className="rounded-2xl border border-border-soft bg-surface-1 p-5 text-left">
                 <div className="flex items-start gap-3">
                   <Mail className="h-5 w-5 text-primary shrink-0 mt-0.5" />

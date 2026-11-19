@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+import { limitByIp } from '@/lib/rate-limit';
 import { eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { dbPool } from '@/db/pool';
@@ -7,6 +8,8 @@ import { signToken } from '@/lib/auth';
 import { setAuthCookie } from '@/lib/cookies';
 import { ok, fail, failValidation, withErrorHandling } from '@/lib/api';
 import { notifyOps } from '@/lib/notify';
+import { nigerianPhoneSchema } from '@/lib/validators';
+import { issueAndSendOtp } from '@/lib/verification';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -21,7 +24,7 @@ const applySchema = z.object({
     .min(8, 'Password must be at least 8 characters.')
     .regex(/[A-Za-z]/, 'Password must contain a letter.')
     .regex(/\d/, 'Password must contain a number.'),
-  phone: z.string().trim().min(7, 'Phone is too short.').max(20),
+  phone: nigerianPhoneSchema, // V16: real Nigerian number, normalized to +234
 
   // Business
   businessName: z.string().trim().min(2, 'Business name is required.').max(200),
@@ -30,7 +33,7 @@ const applySchema = z.object({
   }),
   businessTypeNotes: z.string().trim().max(500).default(''),
   businessAddress: z.string().trim().min(5, 'Please enter a business address.').max(500),
-  businessPhone: z.string().trim().min(7).max(20),
+  businessPhone: nigerianPhoneSchema,
 
   // Bank
   bankAccountName: z.string().trim().min(2, 'Account name is required.').max(200),
@@ -41,6 +44,9 @@ const applySchema = z.object({
 
 export async function POST(req: Request) {
   return withErrorHandling(async () => {
+    // SECURITY (V9): per-IP rate limit (3 per 60 min)
+    const limited = await limitByIp(req, 'seller-apply', 3, 3600);
+    if (limited) return limited;
     let parsed: z.infer<typeof applySchema>;
     try {
       const body = await req.json();
@@ -67,7 +73,8 @@ export async function POST(req: Request) {
     const passwordHash = await bcrypt.hash(parsed.password, 12);
 
     // Insert user + seller atomically
-    return await dbPool().transaction(async (tx) => {
+    let newUser: { id: string; email: string } | null = null;
+    const response = await dbPool().transaction(async (tx) => {
       // Create user with role=seller, profileCompleted=true (they gave us
       // a lot of info; we don't want to send them to /profile/complete)
       await tx.execute(sql`
@@ -84,6 +91,7 @@ export async function POST(req: Request) {
       if (!user) {
         throw new Error('User insert succeeded but lookup failed');
       }
+      newUser = { id: user.id, email: user.email };
 
       // Create sellers row
       await tx.execute(sql`
@@ -101,7 +109,7 @@ export async function POST(req: Request) {
       `);
 
       // Sign them in immediately so they land on /sellers/pending logged-in
-      const token = await signToken({ sub: user.id, email: user.email, role: user.role });
+      const token = await signToken({ sub: user.id, email: user.email, role: user.role, tv: 0 });
       await setAuthCookie(token);
 
       try {
@@ -113,5 +121,14 @@ export async function POST(req: Request) {
 
       return ok({ applied: true });
     });
+
+    // V16: send the email verification code AFTER the user row is
+    // committed (the OTP is stored on that row). Approval requires it.
+    const created = newUser as { id: string; email: string } | null;
+    if (created) {
+      await issueAndSendOtp({ id: created.id, email: created.email, name: parsed.fullName })
+        .catch((e) => console.error('[seller-apply otp]', e));
+    }
+    return response;
   });
 }

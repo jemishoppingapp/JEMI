@@ -27,7 +27,7 @@ export default async function SellerAuthedLayout({
       const countRows = await db().execute(sql`
         SELECT COUNT(DISTINCT id)::int AS n FROM orders
         WHERE status IN ('confirmed', 'processing', 'ready_for_pickup')
-          AND payment_status = 'paid'
+          AND payment_status IN ('paid', 'pay_on_delivery', 'collected')
           AND EXISTS (
             SELECT 1
             FROM jsonb_array_elements(sub_orders) AS so,

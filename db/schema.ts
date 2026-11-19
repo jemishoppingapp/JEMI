@@ -82,6 +82,10 @@ export const users = pgTable(
 
     profileCompleted: boolean('profile_completed').notNull().default(false),
     isDisabled: boolean('is_disabled').notNull().default(false),
+    /** SECURITY (V2): bumped on password change/reset, disable and role
+     *  change. Every login cookie carries the value it was issued with;
+     *  a mismatch means "log this session out". */
+    tokenVersion: integer('token_version').notNull().default(0),
     /** harden-1: login rate limiting */
     failedLoginAttempts: integer('failed_login_attempts').notNull().default(0),
     lockedUntil: timestamp('locked_until', { withTimezone: true }),
@@ -187,6 +191,8 @@ export const products = pgTable(
       t.isFeatured,
       t.createdAt
     ),
+    // Every seller page looks up "my products" by seller_id.
+    sellerIdIdx: index('products_seller_id_idx').on(t.sellerId),
   })
 );
 
@@ -259,6 +265,8 @@ export const orders = pgTable(
     userCreatedIdx: index('orders_user_created_idx').on(t.userId, t.createdAt),
     statusIdx: index('orders_status_idx').on(t.status),
     paymentStatusIdx: index('orders_payment_status_idx').on(t.paymentStatus),
+    // Seller + admin lists filter by payment status and sort newest first.
+    paymentStatusCreatedIdx: index('orders_payment_status_created_idx').on(t.paymentStatus, t.createdAt),
     // Partial unique on paystackReference (Postgres equivalent of Mongo's
     // sparse unique). Empty string is the default before init.
     paystackRefUnique: uniqueIndex('orders_paystack_ref_unique')
@@ -359,7 +367,10 @@ export const escrowLedger = pgTable(
     // Relations — nullable depending on entry type:
     //   hold/release/platform_fee/payout: orderId + sellerId
     //   refund: orderId (no seller — money goes back to buyer)
-    orderId: uuid('order_id').notNull().references(() => orders.id, { onDelete: 'restrict' }),
+    // Nullable: payout rows are per-seller, not per-order, and
+    // lib/payouts-server.ts inserts them with order_id NULL. With NOT NULL
+    // every payout insert failed. See db/migrations-manual/2026-11-19.sql.
+    orderId: uuid('order_id').references(() => orders.id, { onDelete: 'restrict' }),
     sellerId: uuid('seller_id').references(() => sellers.id, { onDelete: 'restrict' }),
 
     // Amount in naira (numeric, like products.price)
@@ -377,6 +388,8 @@ export const escrowLedger = pgTable(
   (t) => ({
     orderIdx: index('escrow_ledger_order_idx').on(t.orderId),
     sellerIdx: index('escrow_ledger_seller_idx').on(t.sellerId),
+    // Balance sums group by (seller_id, type).
+    sellerTypeIdx: index('escrow_ledger_seller_type_idx').on(t.sellerId, t.type),
     typeIdx: index('escrow_ledger_type_idx').on(t.type),
   })
 );
@@ -419,3 +432,14 @@ export const payouts = pgTable(
     statusIdx: index('payouts_status_idx').on(t.status),
   })
 );
+
+// ============================================================
+// Rate limits — SECURITY (V9)
+// Fixed-window counters keyed by "<route>:<ip>". Rows are tiny and
+// swept nightly by /api/cron/cleanup-orders.
+// ============================================================
+export const rateLimits = pgTable('rate_limits', {
+  key: varchar('key', { length: 200 }).primaryKey(),
+  count: integer('count').notNull().default(0),
+  windowStart: timestamp('window_start', { withTimezone: true }).notNull().defaultNow(),
+});

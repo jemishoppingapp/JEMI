@@ -33,10 +33,13 @@ const STATUS_COLOR = {
 export default async function OrdersPage() {
   const user = await requireAuth();
 
-  // Lazy cleanup: expire any pending orders older than 1h before
-  // showing the list. Safe net if the cron job hasn't run yet.
-  // Fire-and-forget — don't block the page on it.
-  expireStaleOrders().catch((err) => {
+  // Lazy cleanup: expire THIS user's pending orders older than 1h before
+  // showing the list (safety net if the nightly cron hasn't run). It used
+  // to sweep the whole orders table on every visit, fire-and-forget —
+  // wasteful, and serverless can kill un-awaited work mid-flight. Scoped
+  // to one user it's a tiny indexed update, so we await it and the list
+  // below shows the correct status.
+  await expireStaleOrders(user.id).catch((err) => {
     // eslint-disable-next-line no-console
     console.error('[/orders] lazy cleanup failed:', err);
   });

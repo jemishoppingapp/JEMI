@@ -1,8 +1,10 @@
 import bcrypt from 'bcryptjs';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { db, schema } from '@/db';
 import { requireAuth } from '@/lib/session';
+import { signToken } from '@/lib/auth';
+import { setAuthCookie } from '@/lib/cookies';
 import { profileUpdateSchema, passwordSchema } from '@/lib/validators';
 import { ok, fail, failValidation, withErrorHandling } from '@/lib/api';
 
@@ -80,10 +82,15 @@ export async function PATCH(req: Request) {
       return fail('WRONG_CURRENT_PASSWORD', 'Your current password is incorrect.', 'current_password');
     }
     const newHash = await bcrypt.hash(parsed.new_password, 12);
-    await db()
+    // SECURITY (V2): bump token_version so every OTHER device is logged
+    // out, then re-issue this device's cookie with the new version.
+    const updated = await db()
       .update(schema.users)
-      .set({ password: newHash, updatedAt: new Date() })
-      .where(eq(schema.users.id, user.id));
+      .set({ password: newHash, tokenVersion: sql`${schema.users.tokenVersion} + 1`, updatedAt: new Date() })
+      .where(eq(schema.users.id, user.id))
+      .returning({ tokenVersion: schema.users.tokenVersion });
+    const token = await signToken({ sub: user.id, email: user.email, role: user.role, tv: updated[0]?.tokenVersion ?? 0 });
+    await setAuthCookie(token);
     return ok({ saved: true });
   });
 }

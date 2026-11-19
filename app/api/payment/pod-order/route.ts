@@ -1,11 +1,10 @@
 import { z } from 'zod';
-import { eq, sql } from 'drizzle-orm';
-import { db, schema } from '@/db';
+import { sql } from 'drizzle-orm';
 import { dbPool } from '@/db/pool';
 import { requireAuth } from '@/lib/session';
 import { createPendingOrder } from '@/lib/checkout';
 import { getPaymentMode } from '@/lib/payment-mode';
-import { sendEmail, orderConfirmationHtml } from '@/lib/email';
+import { sendEmail, orderConfirmationHtml, escapeHtml } from '@/lib/email';
 import { ok, fail, failValidation, withErrorHandling, ApiServerError } from '@/lib/api';
 import { sendTelegram } from '@/lib/notify';
 import { generatePickupCode } from '@/lib/utils';
@@ -66,6 +65,9 @@ export async function POST(req: Request) {
         deliveryZone: parsed.deliveryZone,
         deliveryDescription: parsed.deliveryDescription,
         customerNote: parsed.customerNote,
+        // POD orders never go through markOrderPaid(), so stock must be
+        // taken here, inside the same locked transaction.
+        reserveStock: true,
       });
     } catch (err) {
       if (err instanceof ApiServerError) {
@@ -75,15 +77,26 @@ export async function POST(req: Request) {
     }
 
     // POD: no Paystack. Move the order straight to confirmed +
-    // pay_on_delivery, and record method as 'pod'. Stock was already
-    // decremented inside createPendingOrder's transaction.
+    // pay_on_delivery, record method as 'pod', and fill the pickup codes
+    // in the same statement (they used to be written in a second,
+    // non-transactional step that could leave an order with no code).
+    let podCodes = '';
     await dbPool().transaction(async (tx) => {
+      const soRows = await tx.execute(sql`SELECT sub_orders FROM orders WHERE id = ${result.orderId} FOR UPDATE`);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const subs = ((soRows.rows[0] as any)?.sub_orders ?? []) as any[];
+      for (const so of subs) {
+        if (!so.pickupCode) so.pickupCode = generatePickupCode();
+        so.status = 'confirmed';
+      }
+      podCodes = subs.map((so) => so.pickupCode).filter(Boolean).join(', ');
       await tx.execute(sql`
         UPDATE orders
         SET status = 'confirmed',
             payment_status = 'pay_on_delivery',
             payment_method = 'pod',
             escrow_status = 'held',
+            sub_orders = ${JSON.stringify(subs)}::jsonb,
             timeline = timeline || ${JSON.stringify([{
               status: 'confirmed',
               timestamp: new Date().toISOString(),
@@ -94,20 +107,8 @@ export async function POST(req: Request) {
       `);
     });
 
-    // POD FIX: sub-orders are created with empty pickup codes (only the
-    // Paystack paid-path filled them). Fill real codes now, then email
-    // the buyer their confirmation. Never breaks the checkout.
-    let podCodes = '';
+    // Email the buyer their confirmation. Never breaks the checkout.
     try {
-      const soRows = await db().execute(sql`SELECT sub_orders FROM orders WHERE id = ${result.orderId}`);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const subs = ((soRows.rows[0] as any)?.sub_orders ?? []) as any[];
-      let changed = false;
-      for (const so of subs) { if (!so.pickupCode) { so.pickupCode = generatePickupCode(); changed = true; } }
-      if (changed) {
-        await db().execute(sql`UPDATE orders SET sub_orders = ${JSON.stringify(subs)}::jsonb, updated_at = now() WHERE id = ${result.orderId}`);
-      }
-      podCodes = subs.map((so) => so.pickupCode).filter(Boolean).join(', ');
       const siteUrl2 = process.env.NEXT_PUBLIC_SITE_URL || 'https://jemi.com.ng';
       const gate2 = parsed.deliveryZone === 'lasu-iba-gate' ? 'LASU Iba Gate' : 'Iyana Iba Gate';
       const naira2 = new Intl.NumberFormat('en-NG').format(result.total);
@@ -135,8 +136,8 @@ export async function POST(req: Request) {
             `<p>Order: <strong>${result.orderNumber}</strong><br/>`+
             `Collect: <strong>NGN ${naira}</strong> (cash or transfer)<br/>`+
             `Gate: <strong>${gate}</strong><br/>`+
-            `Where on campus: ${parsed.deliveryDescription}</p>`+
-            `<p>Buyer: ${user.name} — ${user.phone || 'no phone'} — ${user.email}</p>`+
+            `Where on campus: ${escapeHtml(parsed.deliveryDescription)}</p>`+
+            `<p>Buyer: ${escapeHtml(user.name)} — ${escapeHtml(user.phone || 'no phone')} — ${escapeHtml(user.email)}</p>`+
             `<p><a href=\"${siteUrl}/admin/orders/${result.orderNumber}\">Open in admin</a></p></div>`,
           text: `New POD order ${result.orderNumber}. Collect NGN ${naira} at ${gate}. Buyer: ${user.name} ${user.phone || ''}. ${siteUrl}/admin/orders/${result.orderNumber}`,
         });

@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { db, schema } from '@/db';
 import { requireAdmin } from '@/lib/session';
@@ -89,6 +89,7 @@ export async function PATCH(
       const hash = await bcrypt.hash(parsed.new_password, BCRYPT_ROUNDS);
       await db().update(schema.users).set({
         password: hash,
+        tokenVersion: sql`${schema.users.tokenVersion} + 1`, // V2: log out everywhere
         updatedAt: new Date(),
       }).where(eq(schema.users.id, id));
       return ok({ success: true });
@@ -105,6 +106,7 @@ export async function PATCH(
       }
       await db().update(schema.users).set({
         role: parsed.role,
+        tokenVersion: sql`${schema.users.tokenVersion} + 1`, // V2: old role's cookies stop working
         updatedAt: new Date(),
       }).where(eq(schema.users.id, id));
       return ok({ success: true });
@@ -117,6 +119,7 @@ export async function PATCH(
       }
       await db().update(schema.users).set({
         isDisabled: parsed.is_disabled,
+        tokenVersion: sql`${schema.users.tokenVersion} + 1`, // V2: kick live sessions
         updatedAt: new Date(),
       }).where(eq(schema.users.id, id));
       return ok({ success: true });

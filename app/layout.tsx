@@ -1,8 +1,13 @@
-import '@fontsource/nunito/400.css';
-import '@fontsource/nunito/500.css';
-import '@fontsource/nunito/600.css';
-import '@fontsource/nunito/700.css';
-import '@fontsource/nunito/800.css';
+// Only the subsets JEMI uses: latin, plus latin-ext for the naira sign
+// (U+20A6). The full imports also shipped cyrillic + vietnamese faces.
+import '@fontsource/nunito/latin-400.css';
+import '@fontsource/nunito/latin-500.css';
+import '@fontsource/nunito/latin-600.css';
+import '@fontsource/nunito/latin-700.css';
+import '@fontsource/nunito/latin-800.css';
+import '@fontsource/nunito/latin-ext-400.css';
+import '@fontsource/nunito/latin-ext-700.css';
+import '@fontsource/nunito/latin-ext-800.css';
 import './font.css';
 import type { Metadata, Viewport } from 'next';
 import { Toaster } from 'sonner';

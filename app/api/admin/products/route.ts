@@ -2,13 +2,14 @@ import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { db, schema } from '@/db';
 import { requireAdmin } from '@/lib/session';
+import { productImageUrlSchema } from '@/lib/image-url';
 import { ok, fail, failValidation, withErrorHandling } from '@/lib/api';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 const imageSchema = z.object({
-  url: z.string().trim().url('Image URL must be a valid URL.'),
+  url: productImageUrlSchema,
   publicId: z.string().trim().max(200),
   alt: z.string().trim().max(200),
 });

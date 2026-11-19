@@ -45,27 +45,48 @@ export function slugify(input: string): string {
  * is negligible for this scale.
  */
 const PICKUP_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
-export function generatePickupCode(): string {
+
+/** Cryptographically secure random string from PICKUP_ALPHABET.
+ *  Uses Web Crypto (works in Node 20+ and Edge). Math.random is
+ *  predictable and must never be used for codes people rely on. */
+function secureRandomString(length: number): string {
+  const bytes = new Uint32Array(length);
+  globalThis.crypto.getRandomValues(bytes);
   let out = '';
-  for (let i = 0; i < 6; i++) {
-    out += PICKUP_ALPHABET[Math.floor(Math.random() * PICKUP_ALPHABET.length)];
+  for (let i = 0; i < length; i++) {
+    out += PICKUP_ALPHABET[bytes[i] % PICKUP_ALPHABET.length];
   }
   return out;
 }
 
+export function generatePickupCode(): string {
+  return secureRandomString(6);
+}
+
 /**
  * Order number: human-readable, prefixed.
- *   JM-YYMMDD-XXXXX
+ *   JM-YYMMDD-XXXXXX
  *
  * Stable enough for support tickets and not embarrassingly long.
+ * The suffix used to be 5 random digits (100k/day), which collides
+ * (birthday problem) once a day has a few hundred orders and makes
+ * order numbers guessable. Now 6 chars from a 31-letter alphabet
+ * (~887M/day), generated with Web Crypto. Date is Lagos time.
  */
 export function generateOrderNumber(): string {
-  const d = new Date();
-  const yy = String(d.getFullYear()).slice(-2);
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  const rand = String(Math.floor(Math.random() * 100000)).padStart(5, '0');
-  return `JM-${yy}${mm}${dd}-${rand}`;
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Africa/Lagos', year: '2-digit', month: '2-digit', day: '2-digit',
+  }).formatToParts(new Date());
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? '00';
+  return `JM-${get('year')}${get('month')}${get('day')}-${secureRandomString(6)}`;
+}
+
+/** Midnight today in Lagos (WAT, UTC+1), as a Date. Servers run in UTC. */
+export function startOfTodayLagos(): Date {
+  const now = new Date();
+  const lagos = new Date(now.getTime() + 60 * 60 * 1000); // shift to WAT
+  lagos.setUTCHours(0, 0, 0, 0);
+  return new Date(lagos.getTime() - 60 * 60 * 1000);
 }
 
 /**

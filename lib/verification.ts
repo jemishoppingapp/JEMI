@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+import { randomInt } from 'node:crypto';
 import { sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { sendEmail, otpEmailHtml } from '@/lib/email';
@@ -20,7 +21,8 @@ export async function issueAndSendOtp(user: { id: string; email: string; name: s
   if (count >= DAILY_CAP) {
     return { ok: false as const, error: 'Daily code limit reached. Try again tomorrow.' };
   }
-  const code = String(Math.floor(100000 + Math.random() * 900000));
+  // SECURITY (V4): CSPRNG, not Math.random.
+  const code = String(randomInt(100000, 1000000));
   const hash = await bcrypt.hash(code, 10);
   await db().execute(sql`
     UPDATE users SET otp_hash = ${hash},
@@ -38,6 +40,30 @@ export async function issueAndSendOtp(user: { id: string; email: string; name: s
   return { ok: true as const };
 }
 
+
+/**
+ * SECURITY (V4): claim one attempt BEFORE comparing the code. The old
+ * flow read otp_attempts, ran bcrypt (~70ms), then incremented — so a
+ * burst of parallel guesses all saw "0 attempts" and got through. This
+ * single UPDATE is atomic: once 5 attempts are used, it matches no row.
+ * Returns the stored hash, or a reason it can't be tried.
+ */
+async function claimOtpAttempt(userId: string): Promise<
+  { ok: true; hash: string } | { ok: false; error: string }
+> {
+  const r = await db().execute(sql`
+    UPDATE users SET otp_attempts = otp_attempts + 1
+    WHERE id = ${userId}
+      AND otp_hash <> ''
+      AND otp_expires_at > now()
+      AND otp_attempts < ${MAX_TRIES}
+    RETURNING otp_hash`);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const row = r.rows[0] as any;
+  if (row?.otp_hash) return { ok: true, hash: row.otp_hash };
+  return { ok: false, error: 'Code expired or too many wrong tries. Request a new code.' };
+}
+
 export async function verifyOtp(userId: string, code: string) {
   const rows = await db().execute(sql`
     SELECT otp_hash, otp_expires_at, otp_attempts, email_verified FROM users WHERE id = ${userId}`);
@@ -46,11 +72,10 @@ export async function verifyOtp(userId: string, code: string) {
   if (!u) return { ok: false as const, error: 'Account not found.' };
   if (u.email_verified) return { ok: true as const, already: true as const };
   if (!u.otp_hash || !u.otp_expires_at) return { ok: false as const, error: 'No code issued. Tap Resend.' };
-  if (new Date(u.otp_expires_at) < new Date()) return { ok: false as const, error: 'Code expired. Tap Resend for a new one.' };
-  if (Number(u.otp_attempts) >= MAX_TRIES) return { ok: false as const, error: 'Too many wrong tries. Tap Resend for a new code.' };
-  const match = await bcrypt.compare(code, u.otp_hash);
+  const claim = await claimOtpAttempt(userId);
+  if (!claim.ok) return { ok: false as const, error: claim.error };
+  const match = await bcrypt.compare(code, claim.hash);
   if (!match) {
-    await db().execute(sql`UPDATE users SET otp_attempts = otp_attempts + 1 WHERE id = ${userId}`);
     return { ok: false as const, error: 'Wrong code. Check the email and try again.' };
   }
   await db().execute(sql`
@@ -67,14 +92,17 @@ export async function consumeOtp(userId: string, code: string) {
   const u = rows.rows[0] as any;
   if (!u) return { ok: false as const, error: 'Account not found.' };
   if (!u.otp_hash || !u.otp_expires_at) return { ok: false as const, error: 'No code issued. Request a new one.' };
-  if (new Date(u.otp_expires_at) < new Date()) return { ok: false as const, error: 'Code expired. Request a new one.' };
-  if (Number(u.otp_attempts) >= 5) return { ok: false as const, error: 'Too many wrong tries. Request a new code.' };
-  const match = await bcrypt.compare(code, u.otp_hash);
+  const claim = await claimOtpAttempt(userId);
+  if (!claim.ok) return { ok: false as const, error: claim.error };
+  const match = await bcrypt.compare(code, claim.hash);
   if (!match) {
-    await db().execute(sql`UPDATE users SET otp_attempts = otp_attempts + 1 WHERE id = ${userId}`);
     return { ok: false as const, error: 'Wrong code. Check the email and try again.' };
   }
-  await db().execute(sql`
-    UPDATE users SET email_verified = true, otp_hash = '', otp_expires_at = NULL, otp_attempts = 0 WHERE id = ${userId}`);
+  // Single use: only the request that clears THIS hash wins.
+  const used = await db().execute(sql`
+    UPDATE users SET email_verified = true, otp_hash = '', otp_expires_at = NULL, otp_attempts = 0
+    WHERE id = ${userId} AND otp_hash = ${claim.hash}
+    RETURNING id`);
+  if (used.rows.length === 0) return { ok: false as const, error: 'That code was already used. Request a new one.' };
   return { ok: true as const };
 }

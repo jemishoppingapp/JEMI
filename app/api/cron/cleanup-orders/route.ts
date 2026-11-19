@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { sql } from 'drizzle-orm';
+import { db } from '@/db';
 import { expireStaleOrders } from '@/lib/checkout';
 
 export const dynamic = 'force-dynamic';
@@ -31,6 +33,8 @@ export async function GET(req: Request) {
 
   try {
     const expired = await expireStaleOrders();
+    // V9: sweep rate-limit counters older than a day.
+    await db().execute(sql`DELETE FROM rate_limits WHERE window_start < now() - interval '1 day'`).catch(() => {});
     // eslint-disable-next-line no-console
     console.log(`[cron/cleanup-orders] expired ${expired} pending order(s)`);
     return NextResponse.json({ ok: true, expired });

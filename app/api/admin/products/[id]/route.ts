@@ -2,13 +2,14 @@ import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { db, schema } from '@/db';
 import { requireAdmin } from '@/lib/session';
+import { productImageUrlSchema } from '@/lib/image-url';
 import { ok, fail, failValidation, withErrorHandling } from '@/lib/api';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 const imageSchema = z.object({
-  url: z.string().trim().url(),
+  url: productImageUrlSchema,
   publicId: z.string().trim().max(200),
   alt: z.string().trim().max(200),
 });
@@ -17,6 +18,7 @@ const patchSchema = z.object({
   name: z.string().trim().min(1).max(200).optional(),
   description: z.string().trim().max(5000).optional(),
   price: z.number().min(0).optional(),
+  marginPercent: z.number().min(0).max(50).optional(),
   originalPrice: z.number().min(0).nullable().optional(),
   category: z.enum(['fashion', 'electronics', 'food', 'accessories']).optional(),
   seller: z.string().trim().min(1).max(200).optional(),
@@ -60,6 +62,7 @@ export async function PATCH(
     if (parsed.name !== undefined) updates.name = parsed.name;
     if (parsed.description !== undefined) updates.description = parsed.description;
     if (parsed.price !== undefined) updates.price = String(parsed.price);
+    if (parsed.marginPercent !== undefined) updates.marginPercent = String(parsed.marginPercent);
     if (parsed.originalPrice !== undefined) updates.originalPrice = parsed.originalPrice !== null ? String(parsed.originalPrice) : null;
     if (parsed.category !== undefined) updates.category = parsed.category;
     if (parsed.seller !== undefined) updates.seller = parsed.seller;

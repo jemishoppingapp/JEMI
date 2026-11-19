@@ -95,7 +95,7 @@ export default async function SellerDashboardPage() {
           WHERE (item->>'productId')::uuid = ANY (${productIds}::uuid[])
         )::int AS "sellerItemCount"
       FROM orders o
-      WHERE o.payment_status = 'paid'
+      WHERE o.payment_status IN ('paid', 'pay_on_delivery', 'collected')
         AND EXISTS (
           SELECT 1 FROM jsonb_array_elements(o.sub_orders) AS so,
                        jsonb_array_elements(so->'items') AS item
@@ -115,7 +115,7 @@ export default async function SellerDashboardPage() {
 
     const totalRows = await db().execute(sql`
       SELECT COUNT(DISTINCT o.id)::int AS n FROM orders o
-      WHERE o.payment_status = 'paid'
+      WHERE o.payment_status IN ('paid', 'pay_on_delivery', 'collected')
         AND EXISTS (
           SELECT 1 FROM jsonb_array_elements(o.sub_orders) AS so,
                        jsonb_array_elements(so->'items') AS item

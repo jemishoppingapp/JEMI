@@ -1,5 +1,6 @@
 import { and, desc, eq } from 'drizzle-orm';
 import { db, schema } from '@/db';
+import { productPublicColumns } from '@/lib/product-queries';
 import { ok, withErrorHandling } from '@/lib/api';
 
 export const dynamic = 'force-dynamic';
@@ -11,7 +12,7 @@ export async function GET(req: Request) {
     const limit = Math.min(Math.max(Number(url.searchParams.get('limit') ?? 8), 1), 24);
 
     const rows = await db()
-      .select()
+      .select(productPublicColumns) // V10: no internal fields
       .from(schema.products)
       .where(and(eq(schema.products.isActive, true), eq(schema.products.isFeatured, true)))
       .orderBy(desc(schema.products.createdAt))

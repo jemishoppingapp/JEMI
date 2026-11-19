@@ -115,6 +115,20 @@ export async function withErrorHandling<T>(
     if (e instanceof ApiServerError) {
       return fail(e.code, e.message, e.field);
     }
+    // requireAuth()/requireSeller()/requireAdmin() call redirect(), which
+    // throws a NEXT_REDIRECT error. Inside an API route that used to fall
+    // through to a 500 "Something went wrong". Turn it into a proper
+    // 401/403 so the client shows the right message.
+    const digest = (e as { digest?: unknown } | null)?.digest;
+    if (typeof digest === 'string' && digest.startsWith('NEXT_REDIRECT')) {
+      if (digest.includes('/login')) {
+        return fail('UNAUTHORIZED', 'Please sign in to continue.');
+      }
+      if (digest.includes('/sellers/pending')) {
+        return fail('FORBIDDEN', 'Your seller account is not active yet.');
+      }
+      return fail('FORBIDDEN', "You don't have access to do that.");
+    }
     // eslint-disable-next-line no-console
     console.error('[api] unhandled error:', e);
     return fail('SERVER_ERROR', 'Something went wrong on our end. Please try again.');

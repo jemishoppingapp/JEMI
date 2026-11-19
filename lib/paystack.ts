@@ -66,6 +66,7 @@ export interface PaystackVerifyResult {
   status: 'success' | 'failed' | 'abandoned' | 'pending' | string;
   reference: string;
   amount: number;          // in kobo
+  currency: string;
   paid_at: string | null;
   channel: string;
   customer: { email: string };

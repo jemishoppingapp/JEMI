@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { eq } from 'drizzle-orm';
+import { db, schema } from '@/db';
 import { requireAuth } from '@/lib/session';
 import { markOrderPaid } from '@/lib/checkout';
 import { verifyTransaction } from '@/lib/paystack';
@@ -14,8 +16,9 @@ const inputSchema = z.object({
 
 export async function POST(req: Request) {
   return withErrorHandling(async () => {
+    let user;
     try {
-      await requireAuth();
+      user = await requireAuth();
     } catch {
       return fail('UNAUTHORIZED', 'Please sign in to continue.');
     }
@@ -27,6 +30,17 @@ export async function POST(req: Request) {
     } catch (err) {
       if (err instanceof z.ZodError) return failValidation(err);
       return fail('VALIDATION_ERROR', 'Invalid payment reference.');
+    }
+
+    // SECURITY (V3): only the buyer who owns the order may verify it
+    // (the response carries the pickup code).
+    const owner = await db()
+      .select({ userId: schema.orders.userId })
+      .from(schema.orders)
+      .where(eq(schema.orders.paystackReference, parsed.reference))
+      .limit(1);
+    if (!owner[0] || owner[0].userId !== user.id) {
+      return fail('ORDER_NOT_FOUND', "We couldn't find that order on your account.");
     }
 
     // Step 1: verify with Paystack
@@ -53,7 +67,13 @@ export async function POST(req: Request) {
     }
 
     // Step 2: mark our order paid (idempotent)
-    const { order } = await markOrderPaid(parsed.reference);
+    const { order, amountMismatch } = await markOrderPaid(parsed.reference, {
+      amountKobo: Number(verification.amount),
+      currency: String(verification.currency || ''),
+    });
+    if (amountMismatch) {
+      return fail('PAYMENT_NOT_SUCCESSFUL', 'The amount paid does not match your order. Our team has been alerted and will contact you.');
+    }
     if (!order) {
       return fail('ORDER_NOT_FOUND', "We received your payment but couldn't find the matching order. Contact support with this reference.");
     }

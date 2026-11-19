@@ -35,6 +35,7 @@ interface PodResp {
 
 export function CheckoutForm({ user }: { user: { id: string; email: string; name: string } }) {
   const items = useCartStore((s) => s.items);
+  const clearCart = useCartStore((s) => s.clear);
 
   const [zone, setZone] = useState(DELIVERY_ZONES[0].slug);
   const [description, setDescription] = useState('');
@@ -77,6 +78,9 @@ export function CheckoutForm({ user }: { user: { id: string; email: string; name
           method: 'POST',
           body: payload,
         });
+        // The order exists now — empty the cart so a refresh or a second
+        // tap can't place the same order twice.
+        clearCart();
         window.location.href = `/orders/${data.orderNumber}`;
         return;
       }

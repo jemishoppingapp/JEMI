@@ -4,6 +4,7 @@ import { sql } from 'drizzle-orm';
 import { dbPool } from '@/db/pool';
 import { schema } from '@/db';
 import { requireAdmin } from '@/lib/session';
+import { restockOrderItems } from '@/lib/checkout';
 import { ok, fail, failValidation, withErrorHandling } from '@/lib/api';
 
 export const dynamic = 'force-dynamic';
@@ -48,7 +49,7 @@ export async function POST(
 
     return await dbPool().transaction(async (tx) => {
       const lockedRows = await tx.execute(
-        sql`SELECT id, status, payment_status, timeline FROM orders
+        sql`SELECT id, status, payment_status, payment_method, sub_orders, timeline FROM orders
             WHERE order_number = ${orderNumber}
             FOR UPDATE`
       );
@@ -82,6 +83,16 @@ export async function POST(
                 updated_at = now()
             WHERE id = ${row.id}`
       );
+
+      // A cancelled pay-on-delivery order that was never collected gives
+      // its reserved stock back (stock is taken at POD checkout).
+      if (
+        parsed.status === 'cancelled' &&
+        row.payment_method === 'pod' &&
+        row.payment_status === 'pay_on_delivery'
+      ) {
+        await restockOrderItems(tx, row.sub_orders ?? []);
+      }
 
       return ok({ orderNumber, status: parsed.status });
     });

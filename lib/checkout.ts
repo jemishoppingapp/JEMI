@@ -54,6 +54,29 @@ export interface CheckoutInput {
   deliveryZone: DeliveryZoneSlug;
   deliveryDescription: string;
   customerNote: string;
+  /**
+   * Decrement stock inside the same locked transaction. Pay-on-delivery
+   * orders need this: they never pass through markOrderPaid(), which is
+   * where Paystack orders lose their stock. Without it POD orders never
+   * reduced stock and the same item could be sold again and again.
+   */
+  reserveStock?: boolean;
+}
+
+/** Payment states that mean "a real order exists" (not abandoned). */
+export const LIVE_PAYMENT_STATUSES = ['paid', 'pay_on_delivery', 'collected'] as const;
+/** Payment states where JEMI actually has the money. */
+export const MONEY_RECEIVED_STATUSES = ['paid', 'collected'] as const;
+
+/**
+ * Merge duplicate cart lines (same product twice) into one line.
+ * Otherwise each line is stock-checked on its own and two lines of
+ * 3 can pass against a stock of 4.
+ */
+export function mergeCartItems(items: CheckoutCartItem[]): CheckoutCartItem[] {
+  const merged = new Map<string, number>();
+  for (const i of items) merged.set(i.productId, (merged.get(i.productId) ?? 0) + i.quantity);
+  return Array.from(merged, ([productId, quantity]) => ({ productId, quantity }));
 }
 
 export interface CreatePendingOrderResult {
@@ -76,11 +99,15 @@ export interface CreatePendingOrderResult {
 export async function createPendingOrder(
   input: CheckoutInput
 ): Promise<CreatePendingOrderResult> {
-  if (input.items.length === 0) {
+  const items = mergeCartItems(input.items);
+  if (items.length === 0) {
     throw new ApiServerError('CART_EMPTY', "Your cart is empty.");
   }
+  if (items.some((i) => i.quantity > 99)) {
+    throw new ApiServerError('VALIDATION_ERROR', 'You can order at most 99 of one item.', 'items');
+  }
 
-  const productIds = input.items.map((i) => i.productId);
+  const productIds = items.map((i) => i.productId);
   const orderNumber = generateOrderNumber();
   const reference = `${orderNumber}-${Date.now().toString(36).toUpperCase()}`;
 
@@ -112,7 +139,7 @@ export async function createPendingOrder(
     }> = [];
     let subtotal = 0;
 
-    for (const cartItem of input.items) {
+    for (const cartItem of items) {
       const p = byId.get(cartItem.productId);
       if (!p) {
         throw new ApiServerError(
@@ -146,6 +173,19 @@ export async function createPendingOrder(
 
     const total = subtotal + DELIVERY_FEE;
 
+    // POD: take the stock now, while the rows are still locked.
+    if (input.reserveStock) {
+      for (const item of orderItems) {
+        await tx.execute(
+          sql`UPDATE products
+              SET stock_quantity = stock_quantity - ${item.quantity},
+                  in_stock = (stock_quantity - ${item.quantity}) > 0,
+                  updated_at = now()
+              WHERE id = ${item.productId}`
+        );
+      }
+    }
+
     const subOrders = [
       {
         subOrderNumber: `${orderNumber}-1`,
@@ -166,7 +206,7 @@ export async function createPendingOrder(
       },
     ];
 
-    await tx.insert(schema.orders).values({
+    const inserted = await tx.insert(schema.orders).values({
       userId: input.userId,
       orderNumber,
       subOrders,
@@ -181,15 +221,9 @@ export async function createPendingOrder(
       deliveryDescription: input.deliveryDescription,
       customerNote: input.customerNote,
       timeline,
-    });
+    }).returning({ id: schema.orders.id });
 
-    const newOrderRows = await tx
-      .select({ id: schema.orders.id })
-      .from(schema.orders)
-      .where(eq(schema.orders.paystackReference, reference))
-      .limit(1);
-
-    if (!newOrderRows[0]) {
+    if (!inserted[0]) {
       throw new ApiServerError(
         'SERVER_ERROR',
         'Could not save your order. Please try again.'
@@ -197,7 +231,7 @@ export async function createPendingOrder(
     }
 
     return {
-      orderId: newOrderRows[0].id,
+      orderId: inserted[0].id,
       orderNumber,
       reference,
       total,
@@ -208,8 +242,14 @@ export async function createPendingOrder(
 /**
  * Mark an order paid. Idempotent. Decrements stock atomically.
  */
-export async function markOrderPaid(reference: string): Promise<{
+export async function markOrderPaid(
+  reference: string,
+  /** SECURITY (V3): what Paystack says was actually paid. The order is
+   *  only confirmed when this matches the order total in NGN. */
+  paid: { amountKobo: number; currency: string },
+): Promise<{
   alreadyPaid: boolean;
+  amountMismatch?: boolean;
   order: {
     id: string;
     orderNumber: string;
@@ -246,6 +286,23 @@ export async function markOrderPaid(reference: string): Promise<{
           status: 'paid',
         },
       };
+    }
+
+    // SECURITY (V3): never confirm an order for less than its total.
+    const expectedKobo = Math.round(Number(lockedRow.total) * 100);
+    if (paid.currency !== 'NGN' || Math.round(paid.amountKobo) !== expectedKobo) {
+      // eslint-disable-next-line no-console
+      console.error(`[payment] AMOUNT MISMATCH ref=${reference} expected=${expectedKobo} got=${paid.amountKobo} ${paid.currency}`);
+      await tx.execute(sql`
+        UPDATE orders
+        SET timeline = timeline || ${JSON.stringify([{
+              status: 'payment_review',
+              timestamp: new Date().toISOString(),
+              note: `Paid ${paid.amountKobo / 100} ${paid.currency}, expected ${expectedKobo / 100} NGN — needs admin review`,
+            }])}::jsonb,
+            updated_at = now()
+        WHERE id = ${lockedRow.id}`);
+      return { alreadyPaid: false, amountMismatch: true, order: null };
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -308,7 +365,27 @@ export async function markOrderPaid(reference: string): Promise<{
  * touches orders that paid. Even if cron and lazy cleanup race on the
  * same order, both are no-ops if the other already cancelled it.
  */
-export async function expireStaleOrders(): Promise<number> {
+/**
+ * Put stock back for every item in an order's sub-orders. Used when a
+ * pay-on-delivery order (whose stock was reserved at checkout) is
+ * cancelled. Call inside the transaction that cancels the order.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function restockOrderItems(tx: { execute: (q: any) => Promise<unknown> }, subOrders: Array<{ items?: Array<{ productId: string; quantity: number }> }>): Promise<void> {
+  for (const so of subOrders ?? []) {
+    for (const item of so.items ?? []) {
+      await tx.execute(
+        sql`UPDATE products
+            SET stock_quantity = stock_quantity + ${Number(item.quantity)},
+                in_stock = true,
+                updated_at = now()
+            WHERE id = ${item.productId}`
+      );
+    }
+  }
+}
+
+export async function expireStaleOrders(userId?: string): Promise<number> {
   const cutoff = new Date(Date.now() - ORDER_TTL_MS);
   const cutoffTimeline = JSON.stringify([
     {
@@ -328,7 +405,8 @@ export async function expireStaleOrders(): Promise<number> {
             updated_at = now()
         WHERE payment_status = 'pending'
           AND status = 'pending'
-          AND created_at < ${cutoff.toISOString()}`
+          AND created_at < ${cutoff.toISOString()}
+          ${userId ? sql`AND user_id = ${userId}` : sql``}`
   );
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

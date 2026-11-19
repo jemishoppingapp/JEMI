@@ -31,6 +31,11 @@ interface CartState {
   clear: () => void;
 }
 
+/** Server rejects more than 99 of one item; keep the cart in step so the
+ *  buyer never hits a confusing checkout error. */
+export const MAX_QTY_PER_ITEM = 99;
+const clampQty = (n: number) => Math.max(1, Math.min(MAX_QTY_PER_ITEM, Math.floor(n)));
+
 export const useCartStore = create<CartState>()(
   persist(
     (set) => ({
@@ -43,12 +48,12 @@ export const useCartStore = create<CartState>()(
             return {
               items: state.items.map((i) =>
                 i.productId === item.productId
-                  ? { ...i, quantity: i.quantity + quantity }
+                  ? { ...i, quantity: clampQty(i.quantity + quantity) }
                   : i
               ),
             };
           }
-          return { items: [...state.items, { ...item, quantity }] };
+          return { items: [...state.items, { ...item, quantity: clampQty(quantity) }] };
         }),
 
       removeItem: (productId) =>
@@ -60,7 +65,7 @@ export const useCartStore = create<CartState>()(
             quantity <= 0
               ? state.items.filter((i) => i.productId !== productId)
               : state.items.map((i) =>
-                  i.productId === productId ? { ...i, quantity } : i
+                  i.productId === productId ? { ...i, quantity: clampQty(quantity) } : i
                 ),
         })),
 

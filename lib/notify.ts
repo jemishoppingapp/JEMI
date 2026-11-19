@@ -1,4 +1,4 @@
-import { sendEmail } from '@/lib/email';
+import { sendEmail, escapeHtml } from '@/lib/email';
 
 /** Telegram push to the ops chat. Plain text (no parse mode) so user
  *  content can never break the message. Skips + logs when unconfigured.
@@ -33,7 +33,7 @@ export async function notifyOps(opts: { subject: string; text: string; html?: st
   await Promise.allSettled([
     sendTelegram(opts.text),
     to
-      ? sendEmail({ to, subject: opts.subject, text: opts.text, html: opts.html ?? `<pre style="font-family:Arial,sans-serif;font-size:14px;white-space:pre-wrap">${opts.text}</pre>` })
+      ? sendEmail({ to, subject: opts.subject, text: opts.text, html: opts.html ?? `<pre style="font-family:Arial,sans-serif;font-size:14px;white-space:pre-wrap">${escapeHtml(opts.text)}</pre>` })
       : Promise.resolve(),
   ]);
 }

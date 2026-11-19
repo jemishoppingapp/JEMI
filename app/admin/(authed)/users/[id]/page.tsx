@@ -38,7 +38,7 @@ export default async function AdminUserDetailPage({
       .orderBy(desc(schema.orders.createdAt)).limit(10),
     db().select({
       orderCount: sql<number>`count(*)::int`,
-      totalSpent: sql<string>`coalesce(sum(case when payment_status = 'paid' then total else 0 end), 0)::text`,
+      totalSpent: sql<string>`coalesce(sum(case when payment_status in ('paid', 'collected') then total else 0 end), 0)::text`,
     }).from(schema.orders).where(eq(schema.orders.userId, user.id)),
   ]);
 

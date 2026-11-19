@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+import { limitByIp } from '@/lib/rate-limit';
 import { z } from 'zod';
 import { eq, sql } from 'drizzle-orm';
 import { db, schema } from '@/db';
@@ -14,6 +15,9 @@ const inputSchema = z.object({
 
 export async function POST(req: Request) {
   return withErrorHandling(async () => {
+    // SECURITY (V9): per-IP rate limit (10 per 15 min)
+    const limited = await limitByIp(req, 'reset', 10, 900);
+    if (limited) return limited;
     let parsed: z.infer<typeof inputSchema>;
     try { parsed = inputSchema.parse(await req.json()); }
     catch (e) { if (e instanceof z.ZodError) return failValidation(e); return fail('VALIDATION_ERROR', 'Check your inputs.'); }
@@ -30,7 +34,8 @@ export async function POST(req: Request) {
     const hash = await bcrypt.hash(parsed.new_password, 12);
     await db().execute(sql`
       UPDATE users SET password = ${hash},
-        failed_login_attempts = 0, locked_until = NULL, updated_at = now()
+        failed_login_attempts = 0, locked_until = NULL,
+        token_version = token_version + 1, updated_at = now()
       WHERE id = ${user.id}`);
     return ok({ reset: true });
   });

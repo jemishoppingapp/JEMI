@@ -21,7 +21,6 @@ interface CloudinaryUploaderProps {
 
 const ACCEPTED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
 const MAX_FILE_SIZE_MB = 5;
-const UPLOAD_PRESET = 'jemi_products';
 
 export function CloudinaryUploader({
   images,
@@ -50,13 +49,30 @@ export function CloudinaryUploader({
       return null;
     }
 
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('upload_preset', UPLOAD_PRESET);
-
     try {
+      // SECURITY (V6): get a short-lived signature from our server first.
+      // Only admins and approved sellers get one.
+      const signRes = await fetch('/api/uploads/sign', { method: 'POST' });
+      const signBody = await signRes.json().catch(() => null);
+      if (!signRes.ok || !signBody?.ok) {
+        toast.error(signBody?.error?.message || 'You are not allowed to upload images.');
+        return null;
+      }
+      const sig = signBody.data as {
+        signature: string; timestamp: number; apiKey: string;
+        folder: string; upload_preset: string; cloudName: string;
+      };
+
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('upload_preset', sig.upload_preset);
+      formData.append('folder', sig.folder);
+      formData.append('timestamp', String(sig.timestamp));
+      formData.append('api_key', sig.apiKey);
+      formData.append('signature', sig.signature);
+
       const res = await fetch(
-        `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+        `https://api.cloudinary.com/v1_1/${sig.cloudName || cloudName}/image/upload`,
         { method: 'POST', body: formData }
       );
       if (!res.ok) {

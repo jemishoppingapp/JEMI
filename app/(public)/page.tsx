@@ -12,6 +12,7 @@ import { HowItWorks } from '@/components/home/HowItWorks';
 import { TrustStrip } from '@/components/home/TrustStrip';
 import { FooterCTA } from '@/components/home/FooterCTA';
 import { db, schema } from '@/db';
+import { productCardColumns } from '@/lib/product-queries';
 import type { ProductCardData } from '@/components/product/ProductCard';
 
 export const dynamic = 'force-dynamic';
@@ -19,7 +20,7 @@ export const dynamic = 'force-dynamic';
 async function getFeaturedProducts(): Promise<ProductCardData[]> {
   try {
     const rows = await db()
-      .select()
+      .select(productCardColumns)
       .from(schema.products)
       .where(and(eq(schema.products.isActive, true), eq(schema.products.isFeatured, true)))
       .orderBy(desc(schema.products.createdAt))

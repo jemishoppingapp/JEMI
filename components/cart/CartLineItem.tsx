@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { Minus, Plus, Trash2 } from 'lucide-react';
-import { useCartStore, type CartItem } from '@/store/cart';
+import { useCartStore, MAX_QTY_PER_ITEM, type CartItem } from '@/store/cart';
 import { formatCurrency } from '@/lib/utils';
 
 export function CartLineItem({ item, compact = false }: { item: CartItem; compact?: boolean }) {
@@ -41,7 +41,8 @@ export function CartLineItem({ item, compact = false }: { item: CartItem; compac
             <button
               type="button"
               onClick={() => updateQuantity(item.productId, item.quantity + 1)}
-              className="tap inline-flex items-center justify-center h-8 w-8 text-fg-1 hover:bg-surface-1 rounded-r-full"
+              disabled={item.quantity >= MAX_QTY_PER_ITEM}
+              className="tap inline-flex items-center justify-center h-8 w-8 text-fg-1 hover:bg-surface-1 rounded-r-full disabled:opacity-40 disabled:cursor-not-allowed"
               aria-label="Increase"
             >
               <Plus className="h-3.5 w-3.5" />

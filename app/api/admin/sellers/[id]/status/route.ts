@@ -62,6 +62,15 @@ export async function POST(
       }
 
       const currentStatus = row.status as string;
+
+      // V16: never approve a seller whose email isn't verified.
+      if (parsed.status === 'approved') {
+        const v = await tx.execute(sql`SELECT email_verified FROM users WHERE id = ${row.user_id}`);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        if (!(v.rows[0] as any)?.email_verified) {
+          return fail('VALIDATION_ERROR', "This seller hasn't verified their email yet. Ask them to enter the code from their inbox, then approve.");
+        }
+      }
       const allowed = VALID_TRANSITIONS[currentStatus] ?? [];
       if (!allowed.includes(parsed.status)) {
         return fail(

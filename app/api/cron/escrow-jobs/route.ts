@@ -22,17 +22,15 @@ export const runtime = 'nodejs';
  *
  * Orders in the mixed state are deliberately NOT touched by pass 1 or 2.
  *
- * Auth: accepts either Vercel's own cron header or a Bearer CRON_SECRET.
+ * Auth: Bearer CRON_SECRET only (Vercel Cron sends it automatically).
  */
 export async function GET(req: Request) {
-  const vercelCronHeader = req.headers.get('x-vercel-cron');
+  // SECURITY (V5): the x-vercel-cron header can be sent by anyone, so it
+  // proves nothing. Vercel Cron sends `Authorization: Bearer CRON_SECRET`
+  // when CRON_SECRET is set in the project — that is the only check.
   const authHeader = req.headers.get('authorization');
   const expectedSecret = process.env.CRON_SECRET;
-
-  const fromVercelCron = vercelCronHeader === '1';
-  const hasSecret = !!expectedSecret && authHeader === `Bearer ${expectedSecret}`;
-
-  if (!fromVercelCron && !hasSecret) {
+  if (!expectedSecret || authHeader !== `Bearer ${expectedSecret}`) {
     return new Response('Forbidden', { status: 403 });
   }
 

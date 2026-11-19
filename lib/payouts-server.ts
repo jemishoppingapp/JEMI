@@ -59,6 +59,24 @@ export async function createPayout(
   return await createPaystackPayout(sellerId, amount, bankSnapshot, seller, opts);
 }
 
+/**
+ * SECURITY (V11): serialize payouts per seller. Takes a transaction-level
+ * advisory lock on the seller, then re-reads the balance INSIDE the
+ * transaction. Two quick clicks used to both read the same balance and
+ * both pay it out.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function lockSellerAndReadBalance(tx: any, sellerId: string): Promise<number> {
+  await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${'payout:' + sellerId}))`);
+  const r = await tx.execute(sql`
+    SELECT COALESCE(SUM(CASE WHEN type = 'release' THEN amount::numeric
+                             WHEN type = 'payout'  THEN -amount::numeric
+                             ELSE 0 END), 0)::numeric AS available
+    FROM escrow_ledger WHERE seller_id = ${sellerId}`);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return Math.round(Number((r.rows[0] as any)?.available ?? 0) * 100) / 100;
+}
+
 async function recordManualPayout(
   sellerId: string,
   amount: number,
@@ -66,6 +84,10 @@ async function recordManualPayout(
   opts: { transferRef?: string; note?: string; createdBy?: string },
 ): Promise<PayoutResult> {
   return await dbPool().transaction(async (tx) => {
+    const available = await lockSellerAndReadBalance(tx, sellerId);
+    if (available <= 0 || Math.abs(available - amount) > 0.009) {
+      return { ok: false, error: 'This balance was just paid out or changed. Refresh the page and check before paying again.' };
+    }
     const inserted = await tx.execute(sql`
       INSERT INTO payouts (seller_id, amount, method, status, transfer_ref, bank_snapshot, note, created_by, completed_at)
       VALUES (${sellerId}, ${String(amount)}, 'manual', 'completed',
@@ -131,15 +153,30 @@ async function createPaystackPayout(
         .where(eq(schema.sellers.id, sellerId));
     }
 
-    // 2. Create the payout row first (status processing) so we have an id
-    const inserted = await db().execute(sql`
-      INSERT INTO payouts (seller_id, amount, method, status, bank_snapshot, note, created_by)
-      VALUES (${sellerId}, ${String(amount)}, 'paystack', 'processing',
-              ${JSON.stringify(bankSnapshot)}::jsonb, ${opts.note ?? ''}, ${opts.createdBy ?? null})
-      RETURNING id
-    `);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const payoutId = (inserted.rows[0] as any).id;
+    // 2. Create the payout row first (status processing) so we have an id.
+    // SECURITY (V11): under a per-seller lock, refuse if the balance moved
+    // or another Paystack payout for this seller is still in flight.
+    const reserved = await dbPool().transaction(async (tx) => {
+      const available = await lockSellerAndReadBalance(tx, sellerId);
+      if (available <= 0 || Math.abs(available - amount) > 0.009) {
+        return { error: 'This balance was just paid out or changed. Refresh and check before paying again.' };
+      }
+      const inFlight = await tx.execute(sql`
+        SELECT 1 FROM payouts WHERE seller_id = ${sellerId} AND status = 'processing' LIMIT 1`);
+      if (inFlight.rows.length > 0) {
+        return { error: 'A payout to this seller is still processing. Wait for it to finish.' };
+      }
+      const ins = await tx.execute(sql`
+        INSERT INTO payouts (seller_id, amount, method, status, bank_snapshot, note, created_by)
+        VALUES (${sellerId}, ${String(amount)}, 'paystack', 'processing',
+                ${JSON.stringify(bankSnapshot)}::jsonb, ${opts.note ?? ''}, ${opts.createdBy ?? null})
+        RETURNING id
+      `);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return { id: (ins.rows[0] as any).id as string };
+    });
+    if ('error' in reserved) return { ok: false, error: reserved.error };
+    const payoutId = reserved.id;
 
     // 3. Initiate the transfer (amount in kobo)
     const transferRes = await fetch(TRANSFER_API, {

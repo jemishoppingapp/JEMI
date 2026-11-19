@@ -9,6 +9,7 @@ import { ProductFilters } from '@/components/product/ProductFilters';
 import { ProductPagination } from '@/components/product/ProductPagination';
 import { TimeoutDetector } from '@/components/TimeoutDetector';
 import { db, schema } from '@/db';
+import { productCardColumns } from '@/lib/product-queries';
 import type { ProductCardData } from '@/components/product/ProductCard';
 
 export const dynamic = 'force-dynamic';
@@ -72,7 +73,7 @@ async function fetchProducts(args: {
     const skip = (args.page - 1) * PAGE_SIZE;
 
     const [rows, totalRows] = await Promise.all([
-      db().select().from(schema.products).where(where).orderBy(...orderBy).limit(PAGE_SIZE).offset(skip),
+      db().select(productCardColumns).from(schema.products).where(where).orderBy(...orderBy).limit(PAGE_SIZE).offset(skip),
       db().select({ count: sql<number>`count(*)::int` }).from(schema.products).where(where),
     ]);
 

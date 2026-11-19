@@ -218,6 +218,7 @@ export async function initiateRefund(
   orderId: string,
   reason: string,
   createdBy?: string,
+  opts: { allowAfterRelease?: boolean } = {},
 ): Promise<{ ok: boolean; error?: string }> {
   const secret = process.env.PAYSTACK_SECRET_KEY;
   if (!secret) return { ok: false, error: 'PAYSTACK_SECRET_KEY not set' };
@@ -227,6 +228,11 @@ export async function initiateRefund(
   if (!order) return { ok: false, error: 'Order not found' };
   if (order.paymentStatus !== 'paid') return { ok: false, error: 'Order is not paid' };
   if (!order.paystackReference) return { ok: false, error: 'No Paystack reference on order' };
+  // SECURITY (V12): once escrow is released the sellers have been
+  // credited. Refunding the buyer too would make JEMI pay twice.
+  if (order.escrowStatus === 'released' && !opts.allowAfterRelease) {
+    return { ok: false, error: 'Sellers were already paid for this order, so a refund would pay out twice. Recover the money from the seller first, then refund with override.' };
+  }
 
   const existing = await db()
     .select({ id: schema.escrowLedger.id })
@@ -268,8 +274,11 @@ export async function initiateRefund(
       createdBy: createdBy ?? null,
     });
 
+    // Mark the payment refunded too, so revenue totals, seller order
+    // lists and the refund button stop treating it as a paid order.
     await db().update(schema.orders).set({
       escrowStatus: 'refunded',
+      paymentStatus: 'refunded',
       updatedAt: new Date(),
     }).where(eq(schema.orders.id, orderId));
 

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { limitByIp } from '@/lib/rate-limit';
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@/db';
 import { issueAndSendOtp } from '@/lib/verification';
@@ -6,6 +7,9 @@ import { ok, fail, withErrorHandling } from '@/lib/api';
 export const dynamic = 'force-dynamic'; export const runtime = 'nodejs';
 export async function POST(req: Request) {
   return withErrorHandling(async () => {
+    // SECURITY (V9): per-IP rate limit (5 per 15 min)
+    const limited = await limitByIp(req, 'forgot', 5, 900);
+    if (limited) return limited;
     let email = '';
     try { const b = await req.json(); email = z.object({ email: z.string().trim().email() }).parse(b).email.toLowerCase(); }
     catch { return fail('VALIDATION_ERROR', 'Enter a valid email address.'); }

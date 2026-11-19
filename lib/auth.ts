@@ -17,6 +17,9 @@ export interface JemiTokenPayload extends JWTPayload {
   sub: string;        // user._id as string
   email: string;
   role: 'buyer' | 'admin' | 'seller';
+  /** users.token_version at sign-in. Missing on cookies issued before
+   *  this field existed; those count as version 0. */
+  tv?: number;
 }
 
 // Resolve the secret lazily so missing env doesn't crash the build

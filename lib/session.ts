@@ -2,6 +2,7 @@
  * Session helpers for Server Components and Route Handlers.
  * Postgres + Drizzle version.
  */
+import { cache } from 'react';
 import { redirect } from 'next/navigation';
 import { eq } from 'drizzle-orm';
 import { getAuthCookie } from '@/lib/cookies';
@@ -28,7 +29,10 @@ export interface CurrentUser {
  * Returns the current user or null if not logged in / invalid token /
  * deleted user. Does not redirect.
  */
-export async function getCurrentUser(): Promise<CurrentUser | null> {
+// Wrapped in React cache(): the Header, the layout and the page all call
+// this during one request. Without cache() that was 2-4 identical DB
+// round-trips per page view; now it's one.
+export const getCurrentUser = cache(async function getCurrentUser(): Promise<CurrentUser | null> {
   const token = await getAuthCookie();
   if (!token) return null;
 
@@ -43,6 +47,10 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
 
   const user = rows[0];
   if (!user) return null;
+  // SECURITY (V2): disabled accounts and sessions from before a password
+  // change/reset are treated as logged out, immediately.
+  if (user.isDisabled) return null;
+  if ((payload.tv ?? 0) !== user.tokenVersion) return null;
 
   return {
     id: user.id,
@@ -59,7 +67,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
     level: user.level,
     avatar: user.avatar,
   };
-}
+});
 
 /**
  * Server-component / server-action guard. Redirects to /login with a

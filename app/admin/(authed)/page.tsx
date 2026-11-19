@@ -1,11 +1,11 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { and, desc, eq, gte, lte, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, lte, sql } from 'drizzle-orm';
 import {
   ShoppingBag, DollarSign, Clock, AlertTriangle, ArrowRight,
 } from 'lucide-react';
 import { db, schema } from '@/db';
-import { formatCurrency, cn } from '@/lib/utils';
+import { formatCurrency, cn, startOfTodayLagos } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = {
@@ -14,8 +14,8 @@ export const metadata: Metadata = {
 };
 
 async function getStats() {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  // "Today" means today in Lagos — the server runs in UTC.
+  const today = startOfTodayLagos();
 
   try {
     const [ordersTodayRows, revenueTodayRows, pendingCountRows, lowStockRows, recentOrdersRows, lowStockListRows] = await Promise.all([
@@ -28,7 +28,8 @@ async function getStats() {
         .from(schema.orders)
         .where(and(
           gte(schema.orders.createdAt, today),
-          eq(schema.orders.paymentStatus, 'paid')
+          // Money actually received: online-paid or collected at the gate.
+          inArray(schema.orders.paymentStatus, ['paid', 'collected'])
         )),
       db()
         .select({ count: sql<number>`count(*)::int` })
